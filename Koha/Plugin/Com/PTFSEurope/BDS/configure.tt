@@ -1,0 +1,143 @@
+[% INCLUDE 'doc-head-open.inc' %]
+ <title>Koha: BDS Integrator Plugin: Configuration</title>
+[% INCLUDE 'doc-head-close.inc' %]
+
+<script type="text/javascript">
+$(document).ready(function() {
+    $("#coverlinks").change(function() {
+            if ( $(this).prop("checked") ){
+               $("#showtitle").prop("disabled",false);
+            }
+            else {
+                $("#showtitle").prop("disabled",true);
+            }
+    });
+});
+
+</script>
+
+</head>
+<body>
+[% INCLUDE 'header.inc' %]
+[% INCLUDE 'cat-search.inc' %]
+
+<div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="/cgi-bin/koha/plugins/plugins-home.pl">Plugins</a> &rsaquo; BDS Integrator &rsaquo; Configuration</div>
+
+<div id="doc3">
+    <!-- We can access our own plugins resource files using the PLUGIN_PATH variable. -->
+    <img src="[% PLUGIN_PATH %]/logo.png" />
+    <h3>Koha: BDS Integrator Plugin: Configuration</h3>
+    <!-- Notice our form here has no 'action', this is good, it means that our forms will always get passed back to 'plugins/run.pl'. You could hard code it instead if you prefer -->
+    <form method="get">
+        <!-- Always pass these two parameters so the plugin system knows what to execute! -->
+        <input type="hidden" name="class" value="[% CLASS %]"/>
+        <input type="hidden" name="method" value="[% METHOD %]"/>
+
+        <fieldset id="bdsoptionscodepath options">
+            <legend>BDS options</legend>
+
+            <label for="logdir">Koha log folder (eg /var/log/koha/):</label>
+            <input type="text" id="logdir" name="logdir" value="[% logdir %]" />
+            <br/>
+            <label for="editracefilename">EDI trace filename without folder (eg editrace.log):</label>
+            <input type="text" id="logdir" name="editracefilename" value="[% editracefilename %]" />
+            <br/>
+            <label for="custcodeprefix">BDS customer code prefix (eg ptfs):</label>
+            <input type="text" id="custcodeprefix" name="custcodeprefix" value="[% custcodeprefix %]" />
+            <br/>
+            <label for="eancontrolmarcfield">EAN marc field - usually 024:</label>
+            <input type="text" id="eancontrolmarcfield" name="eancontrolmarcfield" value="[% eancontrolmarcfield %]" />
+            <br/>
+            <label for="isncontrolmarcfield">EAN marc field - usually 020:</label>
+            <input type="text" id="isncontrolmarcfield" name="isncontrolmarcfield" value="[% isncontrolmarcfield %]" />
+            <br/>
+            <label for="ftpaddress">BDS ftp connection address (eg ftp.bdslive.com):</label>
+            <input type="text" id="ftpaddress" name="ftpaddress" value="[% ftpaddress %]" />
+            <br/>
+            <label for="ftpeanaddress">BDS ftp connection address for EAN (eg ftp.bibds1.co.uk):</label>
+            <input type="text" id="ftpeanaddress" name="ftpeanaddress" value="[% ftpeanaddress %]" />
+            <br/>
+            <label for="login">BDS username for ftp (eg ptfsuser):</label>
+            <input type="text" id="login" name="login" value="[% login %]" />
+            <br/>
+            <label for="passwd">BDS password for ftp:</label>
+            <input type="text" id="passwd" name="passwd" value="[% passwd %]" />
+            <br/>
+            <label for="upload_isn">Upload path on BDS server for standard orders (eg /deposit/[your username]/Orders):</label>
+            <input type="text" id="upload_isn" name="upload_isn" value="[% upload_isn %]" />
+            <br/>
+            <label for="upload_ean">Upload path on BDS server for trade orders (eg /deposit/[your username]/Trade):</label>
+            <input type="text" id="upload_ean" name="upload_ean" value="[% upload_ean %]" />
+            <br/>
+            <label for="download_isn">Download path on BDS server for standard orders - pipe delimited (eg /receive/[your username]/Orders/Print/CIP|/receive/[your username]/Orders/Ebook/Full):</label>
+            <input type="text" id="download_isn" name="download_isn" value="[% download_isn %]" />
+            <br/>
+            <label for="download_ean">Download path on BDS server for trade orders - pipe delimited (eg /receive/[your username]/OVDR):</label>
+            <input type="text" id="download_ean" name="download_ean" value="[% download_ean %]" />
+            <br/>
+            <label for="kohaframework">Koha framework map. See help below. (eg as:SER|m:CF|o:KT):</label>
+            <input type="text" id="kohaframework" name="kohaframework" value="[% kohaframework %]" />
+            <br/>
+            <label for="defaultframework">Default framework. See help below:</label>
+            <input type="text" id="defaultframework" name="defaultframework" value="[% defaultframework %]" />
+            <br/>
+            <label for="program">yaz executable path (eg /usr/bin/yaz-marcdump):</label>
+            <input type="text" id="program" name="program" value="[% program %]" />
+            <br/>
+            <label for="kohascriptpath">Path where stage_file.pl and commit_file.pl run from (eg /usr/share/koha/bin/):</label>
+            <input type="text" id="kohascriptpath" name="kohascriptpath" value="[% kohascriptpath %]" />
+            <br/>
+
+
+
+
+
+
+
+
+
+        </fieldset>
+
+        </br>
+
+        [% IF error %]<div class="warn alert error">Error: [% error %]</div>[% END %]
+
+
+        <fieldset id="instructions">
+            <legend>Setup instructions</legend>
+<div>
+<p>Download path on BDS server:</p>
+<p>These are the folders on the BDS server from which records are downloaded. They differ according to whether you are an academic or public library. The pipe | symbol separates multiple paths.</p>
+<p>These are the ones for academic libraries:</p>
+<p>ISN:</p>
+<pre>/receive/[your username]/Orders/Ebook/CIP|/receive/[your username]/Orders/Ebook/Full|/receive/[your username]/Orders/Print/CIP|/receive/[your username]/Orders/Print/Full|/receive/[your username]/Upgrades/Ebook/CIP|/receive/[your username]/Upgrades/Ebook/Full|/receive/[your username]/Upgrades/Print/CIP|/receive/[your username]/Upgrades/Print/Full</pre>
+<p>EAN:</p>
+<pre>/receive/[your username]/AV|/receive/[your username]/OVDR</pre>
+<p>These are the ones for public libraries:</p>
+<p>ISN:</p>
+<pre>/receive/[your username]|/receive/[your username]/MARC8</pre>
+<p>EAN:</p>
+<pre>/receive/[your username]/Trade|/receive/[your username]/Trade/MARC8</pre>
+</div>
+
+<div>
+<p>Framework code mappings.</p>
+<p>Each Koha relevant framework for the site must be mapped to LDR position 06 or 06 + 07.  The following variable should be formatted as key/value ldr value (lowercase) | Koha frameworkcode (UPPERCASE). 
+It may help to run a mysql select frameworkcode from biblio_frameworks to get the list for your site. Note that if the code is not found, the DEFAULT koha frameworkcode will be assigned which can optionally 
+set to be empty</p>
+</div>
+<div>
+<p>When you have set the configuration options (ensuring that any paths required already exist on Koha), this plugin can be run from the command line or placed in the cron. A scenario might be to upload records
+at 22:00 nightly, and download them at 23:00, following which the plugin will attempt to stage and load the files received.</p>
+</div>
+
+        </fieldset>
+
+        <p>
+
+        <input type="hidden" name="save" value="1" />
+
+        <input type="submit" value="Save configuration" />
+    </form>
+
+[% INCLUDE 'intranet-bottom.inc' %]

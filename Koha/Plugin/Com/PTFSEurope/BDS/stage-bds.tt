@@ -1,0 +1,20 @@
+[% INCLUDE 'doc-head-open.inc' %]
+ <title>Koha: BDS Integrator Plugin</title>
+[% INCLUDE 'doc-head-close.inc' %]
+</head>
+<body>
+[% INCLUDE 'header.inc' %]
+[% INCLUDE 'cat-search.inc' %]
+
+<div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="/cgi-bin/koha/plugins/plugins-home.pl">Plugins</a> &rsaquo; BDS Integrator &rsaquo; Submit ISBNs to BDS</div>
+
+<div id="doc3">
+    <p>Staging and importing BDS records to Koha.</p>
+    [% IF error %]
+       <p>Error: [% error | html %] </p>
+    [% ELSE %]
+       <p>Successfully staged and imported records.</p>
+    [% END %]
+
+[% INCLUDE 'intranet-bottom.inc' %]
+

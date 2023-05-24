@@ -1,0 +1,15 @@
+[% INCLUDE 'doc-head-open.inc' %]
+ <title>Koha: Metabase Sql Query converter Plugin: Enter SQL</title>
+[% INCLUDE 'doc-head-close.inc' %]
+</head>
+<body>
+[% INCLUDE 'header.inc' %]
+[% INCLUDE 'cat-search.inc' %]
+
+<div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="/cgi-bin/koha/plugins/plugins-home.pl">Plugins</a> &rsaquo; Metabase Sql Query converter &rsaquo; Enter SQL</div>
+
+<div id="doc3">
+
+Text
+
+[% INCLUDE 'intranet-bottom.inc' %]
