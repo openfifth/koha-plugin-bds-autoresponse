@@ -29,7 +29,7 @@ our $VERSION = 1.1;
 ## Here is our metadata, some keys are required, some are optional
 our $metadata = {
     name            => 'BDS Marc Record Integrator',
-    author          => 'Bernard M Scaife',
+    author          => 'Bernard Scaife',
     date_authored   => '2023-05-15',
     date_updated    => "2023-05-15",
     minimum_version => '21.11.00.000',
