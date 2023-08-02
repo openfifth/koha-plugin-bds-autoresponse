@@ -394,9 +394,10 @@ sub submit_files {
     }
     opendir my $dh, $directory
       or return { error => "Cannot opendir $directory: $!" };
+    my $ccode=$self->retrieve_data('custcodeprefix');
     my @submit_files =
-      grep { /^$self->retrieve_data('custcodeprefix')T?\d{9}\.TXT$/ }
-      readdir($dh);
+      grep( /^${ccode}T?\d{9}\.TXT$/,
+      readdir($dh));
 
     closedir $dh;
 
@@ -445,8 +446,9 @@ sub retrieve_files {
     }
     opendir my $dh, "$directory/received"
       or return { error => "Cannot opendir $directory: $!" };
+    my $ccode=$self->retrieve_data('custcodeprefix');
     my @already_received =
-      grep { /^$self->retrieve_data('custcodeprefix')?\d{9}.?\.mrc$/ }
+      grep { /^${ccode}?\d{9}.?\.mrc$/ }
       readdir($dh);
     closedir $dh;
 
@@ -493,8 +495,9 @@ sub get_bds_files {
               "Cannot change working directory  $args->{ftp}->message " };
 
         @files_on_server = $args->{ftp}->ls;
+        my $ccode=$self->retrieve_data('custcodeprefix');
         @download_files =
-          grep { /$self->retrieve_data('custcodeprefix')\d{9}.*.mrc$/ }
+          grep { /${ccode}\d{9}.*.mrc$/ }
           @files_on_server;
         foreach my $filename (@download_files) {
 
@@ -519,7 +522,8 @@ sub fix_charsets {
 
     opendir my $dh, $directory
       or return { error => "Cannot opendir $directory: $!" };
-    my @mfiles = grep { /^$self->retrieve_data('custcodeprefix')t\d{9}\.mrc$/ }
+    my $ccode=$self->retrieve_data('custcodeprefix');
+    my @mfiles = grep { /^${ccode}t\d{9}\.mrc$/ }
       readdir($dh);
     closedir $dh;
 
@@ -748,9 +752,10 @@ sub download_new_files {
     my $local_dir = $directory . '/Source';
     opendir( my $dh, $local_dir )
       or return { error => "can't opendir $local_dir: $!" };
+    my $ccode=$self->retrieve_data('custcodeprefix');
     my @loc_files =
       grep {
-             /^$self->retrieve_data('custcodeprefix').*\.mrc$/
+             /^${ccode}.*\.mrc$/
           && -f "$local_dir/$_"
           && -M "$local_dir/$_" < 300
       } readdir($dh);
@@ -812,9 +817,10 @@ sub get_potentials {
     my $local_dir = $directory . '/Source';
     opendir( my $dh, $local_dir )
       or return { error => "can't opendir $local_dir: $!" };
+    my $ccode=$self->retrieve_data('custcodeprefix');
     my @loc_files =
       grep {
-             /^$self->retrieve_data('custcodeprefix').*\.mrc$/
+             /^${ccode}.*\.mrc$/
           && -f "$local_dir/$_"
           && -M "$local_dir/$_" < 160
       } readdir($dh);
