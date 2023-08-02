@@ -3,7 +3,7 @@ use utf8;
 package Koha::Plugin::Com::PTFSEurope::BDS;
 
 use Modern::Perl;
-
+use Cwd qw( cwd abs_path);
 ## Required for all plugins
 use base qw(Koha::Plugins::Base);
 
@@ -15,6 +15,7 @@ use C4::Biblio qw( ModBiblio );
 use Business::ISBN;
 use Digest::MD5;
 use File::Copy      qw ( move );
+use File::Basename;
 use List::MoreUtils qw( uniq );
 use List::Util      qw( none );
 use MARC::Record;
@@ -54,6 +55,9 @@ sub new {
     ## This runs some additional magic and checking
     ## and returns our actual $self
     my $self = $class->SUPER::new($args);
+    my $pluginsdir = C4::Context->config("pluginsdir");
+    $pluginsdir = ref($pluginsdir) eq 'ARRAY' ? $pluginsdir->[0] : $pluginsdir;
+    $self->{plugindir} = $pluginsdir . "/Koha/Plugin/Com/PTFSEurope/BDS/";
 
     return $self;
 }
@@ -251,7 +255,7 @@ sub get_keys_forsubmission {
 
     my $logfile =
       $self->retrieve_data('logdir') . $self->retrieve_data('editracefilename');
-    my $bds_dir = "Bds/";
+    my $bds_dir = $self->{plugindir};
     my $date;
 
     if (@ARGV) {
@@ -327,7 +331,7 @@ sub get_keys_forsubmission {
             my $filename = $self->retrieve_data('custcodeprefix')
               . "${normalized_date}1.TXT";
             my $isnkeysfile = $self->create_input_file(
-                { filename => "Bds/isbns/$filename", keys => \@isbns } );
+                { filename => $bds_dir . "isbns/$filename", keys => \@isbns } );
             if ( $isnkeysfile->{error} ) {
                 return { error => $isnkeysfile->{error} };
             }
@@ -336,7 +340,7 @@ sub get_keys_forsubmission {
             my $filename = $self->retrieve_data('custcodeprefix')
               . "T${normalized_date}1.TXT";
             my $eankeysfile = $self->create_input_file(
-                { filename => "Bds/eans/$filename", keys => \@eans } );
+                { filename => $bds_dir . "eans/$filename", keys => \@eans } );
             if ( $eankeysfile->{error} ) {
                 return { error => $eankeysfile->{error} };
             }
@@ -383,9 +387,7 @@ sub autoresponse_ftp {
 sub submit_files {
 
     my ( $self, $args ) = @_;
-
-    #my $type      = shift;
-    my $directory = "Bds/$args->{type}";
+    my $directory = $self->{plugindir} .  $args->{type};
     my $ftpaddr   = "";
     if ( !chdir $directory ) {
         return { error => "could not cd to $directory" };
@@ -437,7 +439,7 @@ sub retrieve_files {
     my $getf_retval;
 
     #my $type      = shift;
-    my $directory = "Bds/$args->{type}";
+    my $directory = $self->{plugindir} .  $args->{type};
     if ( !chdir $directory ) {
         return { error => "could not cd to $directory" };
     }
@@ -513,7 +515,7 @@ sub fix_charsets {
 
     # eans marcfiles are encoded in MARC-8 convert to utf_8 before load
 
-    my $directory = "Bds/eans";
+    my $directory = $self->{plugindir} .  "eans";
 
     opendir my $dh, $directory
       or return { error => "Cannot opendir $directory: $!" };
@@ -532,6 +534,7 @@ sub fix_charsets {
 sub update_autoresponse {
 
     my ( $self, $args ) = @_;
+    my $directory = $self->{plugindir};
 
     open( my $arfh, '>>',
         $self->retrieve_data('eancontrolmarcfield') . "autoresponse.log" )
@@ -539,13 +542,13 @@ sub update_autoresponse {
           . $self->retrieve_data('eancontrolmarcfield')
           . "autoresponse.log  $!" };
 
-    my $keys = $self->get_keys( { directory => "Bds/" } );
+    my $keys = $self->get_keys( { directory => $directory } );
     our $dbh      = C4::Context->dbh;
     our $item_sth = $dbh->prepare(
 q{update items set itemcallnumber = ? where biblionumber = ? and notforloan = -1}
     );
 
-    my @marcfiles = $self->get_marcfiles( { bds_dir => "Bds/" } );
+    my @marcfiles = $self->get_marcfiles( { bds_dir => $directory } );
     foreach my $marcfilename (@marcfiles) {
 
         my $marcfile = MARC::File::USMARC->in($marcfilename);
@@ -662,17 +665,18 @@ sub get_keys {
 sub get_marcfiles {
 
     my ( $self, $args ) = @_;
+    my $dir = $self->{plugindir};
 
     #my $bds_dir = shift;
     my @files;
 
     for my $subdir (qw(isbns eans)) {
-        my $directory = "Bds/$subdir";
+        my $directory = $dir . $subdir;
         opendir my $dh, $directory
           or return { error => "Cannot open $directory: $!" };
         while ( readdir $dh ) {
             if (/^$self->retrieve_data('custcodeprefix')t?\d{9}.?\.mrc$/) {
-                push @files, "Bds/$subdir/$_";
+                push @files, $dir . $subdir . "/$_";
             }
         }
         closedir $dh;
@@ -693,6 +697,7 @@ sub update_shelfmark {
 sub stage_bds_files {
 
     my ( $self, $args ) = @_;
+    my $directory = $self->{plugindir};
 
     my $dlresult = $self->download_new_files();
     if ( $dlresult->{error} ) {
@@ -725,7 +730,7 @@ q|select distinct file_name from import_batches where file_name regexp "$self->r
         }
     }
 
-    my $stage_file = 'Bds_staging/Inprocess/files_to_stage';
+    my $stage_file = $directory . '/Inprocess/files_to_stage';
     open my $fh, '>', $stage_file
       or return { error => "Cannot write to $stage_file : $!" };
     foreach my $f (@files_to_load) {
@@ -738,8 +743,9 @@ q|select distinct file_name from import_batches where file_name regexp "$self->r
 sub download_new_files {
 
     my ( $self, $args ) = @_;
+    my $directory = $self->{plugindir};
 
-    my $local_dir = 'Bds_staging/Source';
+    my $local_dir = $directory . '/Source';
     opendir( my $dh, $local_dir )
       or return { error => "can't opendir $local_dir: $!" };
     my @loc_files =
@@ -801,8 +807,9 @@ sub get_bds_marc_files {
 sub get_potentials {
 
     my ( $self, $args ) = @_;
+    my $directory = $self->{plugindir};
 
-    my $local_dir = 'Bds_staging/Source';
+    my $local_dir = $directory . '/Source';
     opendir( my $dh, $local_dir )
       or return { error => "can't opendir $local_dir: $!" };
     my @loc_files =
@@ -818,7 +825,8 @@ sub get_potentials {
 
 sub not_in_archive {
     my ( $self, $args ) = @_;
-    my $archive_filename = "Bds_staging/Archive/$args->{filename}";
+    my $directory = $self->{plugindir};
+    my $archive_filename = $directory . "Archive/$args->{filename}";
     if ( -f $archive_filename ) {
         open my $fh, '<', $archive_filename
           or return { error => "Cannot open $archive_filename : $!" };
@@ -846,33 +854,34 @@ sub not_in_archive {
 sub stage_and_load() {
 
     my ( $self, $args ) = @_;
+    my $directory = $self->{plugindir};
 
-    open( my $files_to_stage, '<', "Bds_staging/Inprocess/files_to_stage" )
+    open( my $files_to_stage, '<', $directory . "Inprocess/files_to_stage" )
       or return { error =>
-          "Could not open file Bds_staging/Inprocess/files_to_stage $!" };
+          "Could not open file" . $directory . "Inprocess/files_to_stage $!" };
     my $file_to_stage = "";
     my $batchnumber   = "";
     while (<$files_to_stage>) {
         chomp $_;
         $file_to_stage = $_;
         system( $self->retrieve_data('kohascriptpath')
-              . "stage_file.pl --file Bds_staging/Source/"
+              . "stage_file.pl --file " . $directory . "Source/"
               . $file_to_stage
-              . " --match 1 --item-action ignore > Bds_staging/Logs/"
+              . " --match 1 --item-action ignore > " . $directory . "Logs/"
               . $file_to_stage
               . ".log" );
         $batchnumber =
           system( "grep '^Batch' "
-              . "Bds_staging/Logs/"
+              . $directory . "Logs/"
               . $file_to_stage
               . ".log | sed 's/[^0-9]//g'" );
         system( $self->retrieve_data('kohascriptpath')
               . "commit_file.pl --batch-number "
               . $batchnumber
-              . " >> Bds_staging/Logs/"
+              . " >> " . $directory . "Logs/"
               . $file_to_stage
               . ".log" );
-        system("cp $file_to_stage Bds/Archive/");
+        system("cp $file_to_stage " . $directory . "Archive/");
 
     }
 }
