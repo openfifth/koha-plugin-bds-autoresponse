@@ -88,6 +88,7 @@ sub configure {
             defaultframework    => $self->retrieve_data('defaultframework'),
             program             => $self->retrieve_data('program'),
             kohascriptpath      => $self->retrieve_data('kohascriptpath'),
+            matchrule           => $self->retrieve_data('matchrule'),
         );
 
         $self->output_html( $template->output() );
@@ -110,6 +111,7 @@ sub configure {
         my $defaultframework    = $cgi->param('defaultframework')    // "";
         my $program             = $cgi->param('program')             // "";
         my $kohascriptpath      = $cgi->param('kohascriptpath')      // "";
+        my $matchrule           = $cgi->param('matchrule')      // "";
         $self->store_data(
             {
                 logdir              => $logdir,
@@ -129,6 +131,7 @@ sub configure {
                 defaultframework    => $defaultframework,
                 program             => $program,
                 kohascriptpath      => $kohascriptpath,
+                matchrule           => $matchrule,
 
             }
         );
@@ -869,13 +872,14 @@ sub stage_and_load() {
           "Could not open file" . $directory . "Inprocess/files_to_stage $!" };
     my $file_to_stage = "";
     my $batchnumber   = "";
+    my $mtch_rule=$self->retrieve_data('matchrule');
     while (<$files_to_stage>) {
         chomp $_;
         $file_to_stage = $_;
         system( $self->retrieve_data('kohascriptpath')
               . "stage_file.pl --file " . $directory . "Source/"
               . $file_to_stage
-              . " --match 1 --item-action ignore > " . $directory . "Logs/"
+              . " --match " . $mtch_rule . " --item-action ignore > " . $directory . "Logs/"
               . $file_to_stage
               . ".log" );
         $batchnumber =
