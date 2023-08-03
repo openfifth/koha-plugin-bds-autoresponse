@@ -448,7 +448,7 @@ sub retrieve_files {
       or return { error => "Cannot opendir $directory: $!" };
     my $ccode=$self->retrieve_data('custcodeprefix');
     my @already_received =
-      grep { /^${ccode}?\d{9}.?\.mrc$/ }
+      grep ( /^${ccode}?\d{9}.?\.mrc$/ ),
       readdir($dh);
     closedir $dh;
 
@@ -466,7 +466,7 @@ sub retrieve_files {
         {
             type             => $args->{type},
             ftp              => $ftp,
-            already_received => @already_received
+            already_received => \@already_received
         }
     );
     $ftp->quit;
@@ -492,13 +492,13 @@ sub get_bds_files {
     foreach my $bdsdirectory (@bdsdirs) {
         $args->{ftp}->cwd($bdsdirectory)
           or return { error =>
-              "Cannot change working directory  $args->{ftp}->message " };
+              "Cannot change working directory to $bdsdirectory -  $args->{ftp}->message " };
 
         @files_on_server = $args->{ftp}->ls;
         my $ccode=$self->retrieve_data('custcodeprefix');
         @download_files =
-          grep { /${ccode}\d{9}.*.mrc$/ }
-          @files_on_server;
+          grep ( /${ccode}\d{9}.*.mrc$/,
+          @files_on_server);
         foreach my $filename (@download_files) {
 
             if ( none { /$filename/ } $args->{already_received} ) {
@@ -523,8 +523,8 @@ sub fix_charsets {
     opendir my $dh, $directory
       or return { error => "Cannot opendir $directory: $!" };
     my $ccode=$self->retrieve_data('custcodeprefix');
-    my @mfiles = grep { /^${ccode}t\d{9}\.mrc$/ }
-      readdir($dh);
+    my @mfiles = grep ( /^${ccode}t\d{9}\.mrc$/,
+      readdir($dh));
     closedir $dh;
 
     foreach my $filename (@mfiles) {
@@ -541,9 +541,9 @@ sub update_autoresponse {
     my $directory = $self->{plugindir};
 
     open( my $arfh, '>>',
-        $self->retrieve_data('eancontrolmarcfield') . "autoresponse.log" )
+        $self->retrieve_data('logdir') . "autoresponse.log" )
       or return { error => "Could not open file "
-          . $self->retrieve_data('eancontrolmarcfield')
+          . $self->retrieve_data('logdir')
           . "autoresponse.log  $!" };
 
     my $keys = $self->get_keys( { directory => $directory } );
@@ -593,7 +593,7 @@ q{update items set itemcallnumber = ? where biblionumber = ? and notforloan = -1
         }
 
     }
-
+    return { success => "Updated autoresponse." };
 }
 
 sub update_biblio {
@@ -754,11 +754,11 @@ sub download_new_files {
       or return { error => "can't opendir $local_dir: $!" };
     my $ccode=$self->retrieve_data('custcodeprefix');
     my @loc_files =
-      grep {
+      grep (
              /^${ccode}.*\.mrc$/
           && -f "$local_dir/$_"
-          && -M "$local_dir/$_" < 300
-      } readdir($dh);
+          && -M "$local_dir/$_" < 300,
+          readdir($dh));
     closedir $dh;
     my %loc_fil = map { $_ => 1 } @loc_files;
 
@@ -785,7 +785,7 @@ sub download_new_files {
 sub get_bds_marc_files {
 
     my ( $self, $args ) = @_;
-
+    my $locdirectory = $self->{plugindir};
     my @bdsdirs;
     @bdsdirs = split /\|/, $self->retrieve_data('download_isn');
     my @rem_files;
@@ -796,17 +796,19 @@ sub get_bds_marc_files {
             error => "Cannot change working directory $args->{ftp}->message" };
         @rem_files =
           $args->{ftp}->ls( $self->retrieve_data('custcodeprefix') . '*.mrc' );
+	my %locfil=$args->{loc_fil}; 
         foreach my $rmfl (@rem_files) {
 
             $modt = $args->{ftp}->mdtm($rmfl);
 
-            if ( !exists( $args->{loc_fil}{$rmfl} ) ) {
+            if ( !exists( $locfil{$rmfl} ) ) {
 
-                $args->{ftp}->get( $rmfl, "Source/$rmfl" );
-                `touch --date=\@$modt Source/$rmfl`;
+                $args->{ftp}->get( $rmfl, $locdirectory . "Source/$rmfl" );
+                `touch --date=\@$modt ${locdirectory}Source/$rmfl`;
             }
         }
     }
+    return { success => "BDS files retrieved for staging." };
 }
 
 sub get_potentials {
@@ -819,11 +821,11 @@ sub get_potentials {
       or return { error => "can't opendir $local_dir: $!" };
     my $ccode=$self->retrieve_data('custcodeprefix');
     my @loc_files =
-      grep {
+      grep ({
              /^${ccode}.*\.mrc$/
           && -f "$local_dir/$_"
-          && -M "$local_dir/$_" < 160
-      } readdir($dh);
+          && -M "$local_dir/$_" < 160,
+      readdir($dh));
     closedir $dh;
     my @filelist = sort @loc_files;
     return \@filelist;
