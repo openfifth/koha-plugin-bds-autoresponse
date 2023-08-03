@@ -85,7 +85,9 @@ $(document).ready(function() {
             <input type="text" id="program" name="program" value="[% program %]" />
             <br/>
             <label for="kohascriptpath">Path where stage_file.pl and commit_file.pl run from (eg /usr/share/koha/bin/):</label>
-            <input type="text" id="kohascriptpath" name="kohascriptpath" value="[% kohascriptpath %]" />
+            <input type="text" id="matchrule" name="kohascriptpath" value="[% kohascriptpath %]" />
+            <label for="kohascriptpath">Match rule ID in Koha (eg 1):</label>
+            <input type="text" id="matchrule" name="matchrule" value="[% matchrule %]" />
             <br/>
 
 
