@@ -227,12 +227,12 @@ sub stage_bds {
 
     $logger->warn("Staging and loading BDS files to Koha\n");
     my $sbdsresult = $self->stage_bds_files();
-    if ( $sbdsresult->{error} ) {
+    if ( ref $sbdsresult eq "HASH" && $sbdsresult->{error} ) {
         $logger->warn( "Error: " . Dumper( $sbdsresult->{error} ) . "\n" );
         $template->param( error => $sbdsresult->{error} );
     }
     my $sandlresult = $self->stage_and_load();
-    if ( $sandlresult->{error} ) {
+    if ( ref $sandlresult eq "HASH" && $sandlresult->{error} ) {
         $logger->warn( "Error: " . Dumper( $sandlresult->{error} ) . "\n" );
         $template->param( error => $sandlresult->{error} );
     }
@@ -716,7 +716,7 @@ q|select distinct file_name from import_batches where file_name regexp "$self->r
     my $loaded_files = $dbh->selectcol_arrayref($sql);
 
     my $potential_files = $self->get_potentials();
-    if ( $potential_files->{error} ) {
+    if ( ref $potential_files eq "HASH" && $potential_files->{error} ) {
         return { error => $potential_files->{error} };
     }
 
@@ -726,7 +726,7 @@ q|select distinct file_name from import_batches where file_name regexp "$self->r
 
     foreach my $f ( @{$potential_files} ) {
         my $niaresult = $self->not_in_archive( { f => $f } );
-        if ( $niaresult->{error} ) {
+        if ( ref $niaresult eq "HASH" && $niaresult->{error} ) {
             return { error => $niaresult->{error} };
         }
         if ( !exists $loaded{$f} && $niaresult ) {
