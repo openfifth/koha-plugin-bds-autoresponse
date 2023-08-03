@@ -821,7 +821,7 @@ sub get_potentials {
       or return { error => "can't opendir $local_dir: $!" };
     my $ccode=$self->retrieve_data('custcodeprefix');
     my @loc_files =
-      grep ({
+      grep (
              /^${ccode}.*\.mrc$/
           && -f "$local_dir/$_"
           && -M "$local_dir/$_" < 160,
