@@ -178,37 +178,41 @@ sub tool_step1 {
 }
 
 sub submit_bds {
-    my ( $self, $args ) = @_;
+    my ( $self, $iscron ) = @_;
+    warn "start";
     my $cgi = $self->{'cgi'};
-
-    my $template = $self->get_template( { file => 'submit-bds.tt' } );
+warn "after cgi";   
+    my $template = $self->get_template( { file => 'submit-bds.tt' } ) if !$iscron;
+warn "after template";
     $logger->warn("Getting keys to submit\n");
     my $keyresult = $self->get_keys_forsubmission();
     if ( $keyresult->{error} ) {
         $logger->warn( "Error: " . Dumper( $keyresult->{error} ) . "\n" );
-        $template->param( error => $keyresult->{error} );
+        $template->param( error => $keyresult->{error} ) if !$iscron;
     }
     $logger->warn("Sending ISBNs to BDS\n");
     my $auresult = $self->autoresponse_ftp( { function => 'send' } );
     if ( $auresult->{error} ) {
         $logger->warn( "Error: " . Dumper( $auresult->{error} ) . "\n" );
-        $template->param( error => $auresult->{error}, fn => "send" );
+        $template->param( error => $auresult->{error}, fn => "send" ) if !$iscron;
     }
 
-    $self->output_html( $template->output() );
+    $self->output_html( $template->output() ) if !$iscron;
+    warn "I'm here!";
 }
 
+
 sub import_bds {
-    my ( $self, $args ) = @_;
+    my ( $self, $iscron ) = @_;
     my $cgi = $self->{'cgi'};
 
-    my $template = $self->get_template( { file => 'import-bds.tt' } );
+    my $template = $self->get_template( { file => 'import-bds.tt' } ) if !$iscron;
 
     $logger->warn("Receiving from BDS\n");
     my $auresult = $self->autoresponse_ftp( { function => 'receive' } );
     if ( $auresult->{error} ) {
         $logger->warn( "Error: " . Dumper( $auresult->{error} ) . "\n" );
-        $template->param( error => $auresult->{error}, fn => "receive" );
+        $template->param( error => $auresult->{error}, fn => "receive" ) if !$iscron;
     }
     $logger->warn("Fixing charsets\n");
     $self->fix_charsets();
@@ -216,35 +220,35 @@ sub import_bds {
     my $uarresult = $self->update_autoresponse();
     if ( $uarresult->{error} ) {
         $logger->warn( "Error: " . Dumper( $uarresult->{error} ) . "\n" );
-        $template->param( error => $uarresult->{error} );
+        $template->param( error => $uarresult->{error} ) if !$iscron;
     }
 
-    $self->output_html( $template->output() );
+    $self->output_html( $template->output() ) if !$iscron;
 }
 
 sub stage_bds {
-    my ( $self, $args ) = @_;
+    my ( $self, $iscron ) = @_;
     my $cgi = $self->{'cgi'};
 
-    my $template = $self->get_template( { file => 'stage-bds.tt' } );
+    my $template = $self->get_template( { file => 'stage-bds.tt' } ) if !$iscron;
 
     $logger->warn("Staging and loading BDS files to Koha\n");
     my $sbdsresult = $self->stage_bds_files();
     if ( ref $sbdsresult eq "HASH" && $sbdsresult->{error} ) {
         $logger->warn( "Error: " . Dumper( $sbdsresult->{error} ) . "\n" );
-        $template->param( error => $sbdsresult->{error} );
+        $template->param( error => $sbdsresult->{error} ) if !$iscron;
     }
     my $sandlresult = $self->stage_and_load();
     if ( ref $sandlresult eq "HASH" && $sandlresult->{error} ) {
         $logger->warn( "Error: " . Dumper( $sandlresult->{error} ) . "\n" );
-        $template->param( error => $sandlresult->{error} );
+        $template->param( error => $sandlresult->{error} ) if !$iscron;
     }
 
     # Convert resevoir 10 character isbns to 13-digit forms
     $logger->warn("Normalising 10 to 14 digit isbns\n");
     $self->normalize_isbns();
 
-    $self->output_html( $template->output() );
+    $self->output_html( $template->output() ) if !$iscron;
 }
 
 sub get_keys_forsubmission {
