@@ -45,28 +45,24 @@ if ($get_help) {
 }
 
 our $logger =
-  Koha::Logger->get( { interface => 'intranet', category => 'test' } );
+  Koha::Logger->get( { interface => 'intranet', category => 'bds' } );
 
 # First check we can proceed
 my @bds_plugin = Koha::Plugins->new()->GetPlugins( {'metadata' => {'name'=>'BDS Marc Record Integrator'} } );
 my $bds = $bds_plugin[0];
-use Data::Dumper; $Data::Dumper::Maxdepth = 2;
-warn Dumper('##### 1 #######################################################line: ' . __LINE__);
-warn Dumper($bds->submit_bds(1));
-warn Dumper('##### end1 #######################################################');
 if(!$bds)  {
   $logger->warn("No BDS plugin installed. Cron bailing...\n");
   exit 0;
 }
 #  toolphase specified, run only this toolphase
 if ($toolphase eq "submit") {
-   warn Dumper($bds->submit_bds(1));
+   $bds->submit_bds(1);
 }
 elsif ($toolphase eq "import") {
-   warn Dumper($bds->import_bds(1));
+   $bds->import_bds(1);
 }
 elsif ($toolphase eq "stage") {
-   warn Dumper($bds->stage_bds(1));
+   $bds->stage_bds(1);
 }
 else {
       $logger->warn("Incorrect tool phase parameter supplied of $toolphase to BDS plugin via cron. Not running...\n");
@@ -90,10 +86,9 @@ sub get_help {
     print <<"HELP";
 $0: Run a BDS autoresponse phase
 
-This script will run backend-wide toolphases provided by the Backend.
-Example: the ReprintsDesk backend provides a toolphase script
-that queries the supplier for the most recent 100 orders and acts 
-upon the response.
+This script will run toolphases for BDS autoresponse plugin.
+Example: the plugin provides a toolphase that submits keys to BDS
+and import phase acts upon the response.
 
 Parameters:
     --toolphase                          tool to run - submit, import or stage are the options
