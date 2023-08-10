@@ -179,11 +179,8 @@ sub tool_step1 {
 
 sub submit_bds {
     my ( $self, $iscron ) = @_;
-    warn "start";
     my $cgi = $self->{'cgi'};
-warn "after cgi";   
     my $template = $self->get_template( { file => 'submit-bds.tt' } ) if !$iscron;
-warn "after template";
     $logger->warn("Getting keys to submit\n");
     my $keyresult = $self->get_keys_forsubmission();
     if ( $keyresult->{error} ) {
@@ -198,7 +195,6 @@ warn "after template";
     }
 
     $self->output_html( $template->output() ) if !$iscron;
-    warn "I'm here!";
 }
 
 
@@ -780,7 +776,7 @@ sub download_new_files {
       or return { error => 'Cannot login to BDS ', $ftp->message };
     $ftp->binary();
     my $gbdsmresult =
-      $self->get_bds_marc_files( { ftp => $ftp, loc_fil => %loc_fil } );
+      $self->get_bds_marc_files( { ftp => $ftp, loc_fil => \%loc_fil } );
     if ( $gbdsmresult->{error} ) {
         return { error => $gbdsmresult->{error} };
     }
@@ -803,12 +799,11 @@ sub get_bds_marc_files {
             error => "Cannot change working directory $args->{ftp}->message" };
         @rem_files =
           $args->{ftp}->ls( $self->retrieve_data('custcodeprefix') . '*.mrc' );
-	my %locfil=$args->{loc_fil}; 
         foreach my $rmfl (@rem_files) {
 
             $modt = $args->{ftp}->mdtm($rmfl);
 
-            if ( !exists( $locfil{$rmfl} ) ) {
+            if ( !exists( $args->{loc_fil}{$rmfl} ) ) {
 
                 $args->{ftp}->get( $rmfl, $locdirectory . "Source/$rmfl" );
                 `touch --date=\@$modt ${locdirectory}Source/$rmfl`;
@@ -841,14 +836,14 @@ sub get_potentials {
 sub not_in_archive {
     my ( $self, $args ) = @_;
     my $directory = $self->{plugindir};
-    my $archive_filename = $directory . "Archive/$args->{filename}";
+    my $archive_filename = $directory . "Archive/$args->{f}";
     if ( -f $archive_filename ) {
         open my $fh, '<', $archive_filename
           or return { error => "Cannot open $archive_filename : $!" };
         binmode $fh;
         my $archive_digest = Digest::MD5->new->addfile($fh)->hexdigest;
         close $fh;
-        my $source_filename = "Source/$args->{filename}";
+        my $source_filename = $directory . "Source/$args->{f}";
         open my $fh2, '<', $source_filename
           or return { error => "Cannot open $source_filename : $!" };
         binmode $fh2;
@@ -886,18 +881,14 @@ sub stage_and_load() {
               . " --match " . $mtch_rule . " --item-action ignore > " . $directory . "Logs/"
               . $file_to_stage
               . ".log" );
-        $batchnumber =
-          system( "grep '^Batch' "
-              . $directory . "Logs/"
-              . $file_to_stage
-              . ".log | sed 's/[^0-9]//g'" );
+        $batchnumber = `grep '^Batch' ${directory}Logs/${file_to_stage}.log | sed 's/[^0-9]//g'`;
         system( $self->retrieve_data('kohascriptpath')
               . "commit_file.pl --batch-number "
               . $batchnumber
               . " >> " . $directory . "Logs/"
               . $file_to_stage
               . ".log" );
-        system("cp $file_to_stage " . $directory . "Archive/");
+        system("cp " . $directory . "Source/" . $file_to_stage . " " . $directory . "Archive/");
 
     }
 }
