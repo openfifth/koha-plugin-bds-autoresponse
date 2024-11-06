@@ -20,7 +20,7 @@ use List::MoreUtils qw( uniq );
 use List::Util      qw( none );
 use MARC::Record;
 use MARC::File::USMARC;
-use Net::FTP;
+use Net::SFTP::Foreign;
 
 use Data::Dumper;
 
@@ -411,27 +411,31 @@ sub submit_files {
         else {
             $ftpaddr = $self->retrieve_data('ftpeanaddress');
         }
-        my $ftp = Net::FTP->new( $ftpaddr, Debug => 0, Passive => 1 )
+        my $ftp = Net::SFTP::Foreign->new( 
+            $ftpaddr, 
+            user => $self->retrieve_data('login'),
+            password => $self->retrieve_data('passwd'),
+            timeout => 10
+            #Debug => 0, 
+            #Passive => 1
+        )
           or return { error => "Cannot connect to $ftpaddr: $@" };
 
-        $ftp->login( $self->retrieve_data('login'),
-            $self->retrieve_data('passwd') )
-          or return { error => "Cannot login:  $ftp->message" };
         if ( $args->{type} eq "isbns" ) {
-            $ftp->cwd( $self->retrieve_data('upload_isn') )
+            $ftp->setcwd( $self->retrieve_data('upload_isn') )
               or return {
-                error => "Cannot change working directory $ftp->message" };
+                error => "Cannot change working directory $ftp->error" };
         }
         else {
-            $ftp->cwd( $self->retrieve_data('upload_ean') )
+            $ftp->setcwd( $self->retrieve_data('upload_ean') )
               or return {
-                error => "Cannot change working directory  $ftp->message" };
+                error => "Cannot change working directory  $ftp->error" };
         }
         foreach my $filename (@submit_files) {
-            $ftp->put($filename);
+            $ftp->put($filename, $filename);
             move( "$directory/$filename", "$directory/submitted/$filename" );
         }
-        $ftp->quit;
+        $ftp->disconnect;
 
     }
     return;
@@ -455,16 +459,16 @@ sub retrieve_files {
       readdir($dh);
     closedir $dh;
 
-    #my $f = $ftp_details->{$type};
-    my $ftp = Net::FTP->new(
+    my $ftp = Net::SFTP::Foreign->new(
         $self->retrieve_data('ftpaddress'),
-        Debug   => 0,
-        Passive => 1
+        user => $self->retrieve_data('login'),
+        password => $self->retrieve_data('passwd'),
+        timeout => 10
+        #Debug => 0, 
+        #Passive => 1
       )
       or return {
         error => "Cannot connect to  $self->retrieve_data('ftpaddress'): $@" };
-    $ftp->login( $self->retrieve_data('login'), $self->retrieve_data('passwd') )
-      or return { error => "Cannot login:  $ftp->message" };
     $getf_retval = $self->get_bds_files(
         {
             type             => $args->{type},
@@ -472,7 +476,7 @@ sub retrieve_files {
             already_received => \@already_received
         }
     );
-    $ftp->quit;
+    $ftp->disconnect;
 
     return $getf_retval;
 
@@ -493,11 +497,11 @@ sub get_bds_files {
     my @files_on_server;
     my @download_files;
     foreach my $bdsdirectory (@bdsdirs) {
-        $args->{ftp}->cwd($bdsdirectory)
+        $args->{ftp}->setcwd($bdsdirectory)
           or return { error =>
-              "Cannot change working directory to $bdsdirectory -  $args->{ftp}->message " };
+              "Cannot change working directory to $bdsdirectory -  $args->{ftp}->error " };
 
-        @files_on_server = $args->{ftp}->ls;
+        @files_on_server = $args->{ftp}->ls('.', names_only => 1);
         my $ccode=$self->retrieve_data('custcodeprefix');
         @download_files =
           grep ( /${ccode}\d{9}.*.mrc$/,
@@ -505,7 +509,7 @@ sub get_bds_files {
         foreach my $filename (@download_files) {
 
             if ( none { /$filename/ } $args->{already_received} ) {
-                $args->{ftp}->get($filename);
+                $args->{ftp}->get($filename, $filename);
             }
         }
     }
@@ -769,18 +773,24 @@ sub download_new_files {
     my $username = $self->retrieve_data('login');
     my $password = $self->retrieve_data('passwd');
 
-    my $ftp = Net::FTP->new( $remote, Debug => 0, Passive => 1 )
-      or return { error => "Cannot connect to BDS: $@" };
+    my $ftp = Net::SFTP::Foreign->new
+    ( 
+        $remote,
+        user => $username,
+        password => $password,
+        timeout => 10
+        #Debug => 0, 
+        #Passive => 1 
+    )
+     or return { error => "Cannot connect to BDS: $@" };
 
-    $ftp->login( $username, $password )
-      or return { error => 'Cannot login to BDS ', $ftp->message };
-    $ftp->binary();
+    #$ftp->binary();
     my $gbdsmresult =
       $self->get_bds_marc_files( { ftp => $ftp, loc_fil => \%loc_fil } );
     if ( $gbdsmresult->{error} ) {
         return { error => $gbdsmresult->{error} };
     }
-    $ftp->quit;
+    $ftp->disconnect;
 
     return;
 }
@@ -794,14 +804,14 @@ sub get_bds_marc_files {
     my @rem_files;
     my $modt;
     foreach my $bdsdirectory (@bdsdirs) {
-        $args->{ftp}->cwd($bdsdirectory)
+        $args->{ftp}->setcwd($bdsdirectory)
           or return {
-            error => "Cannot change working directory $args->{ftp}->message" };
+            error => "Cannot change working directory $args->{ftp}->error" };
         @rem_files =
-          $args->{ftp}->ls( $self->retrieve_data('custcodeprefix') . '*.mrc' );
+          $args->{ftp}->ls( $self->retrieve_data('custcodeprefix') . '*.mrc', names_only = 1 );
         foreach my $rmfl (@rem_files) {
 
-            $modt = $args->{ftp}->mdtm($rmfl);
+            $modt = $args->{ftp}->stat($rmfl)->mtime;
 
             if ( !exists( $args->{loc_fil}{$rmfl} ) ) {
 
