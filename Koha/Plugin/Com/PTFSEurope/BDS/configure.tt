@@ -51,16 +51,16 @@ $(document).ready(function() {
             <label for="isncontrolmarcfield">EAN marc field - usually 020:</label>
             <input type="text" id="isncontrolmarcfield" name="isncontrolmarcfield" value="[% isncontrolmarcfield %]" />
             <br/>
-            <label for="ftpaddress">BDS ftp connection address (eg ftp.bdslive.com):</label>
+            <label for="ftpaddress">BDS sftp connection address (eg sftp.bdslive.com):</label>
             <input type="text" id="ftpaddress" name="ftpaddress" value="[% ftpaddress %]" />
             <br/>
-            <label for="ftpeanaddress">BDS ftp connection address for EAN (eg ftp.bibds1.co.uk):</label>
+            <label for="ftpeanaddress">BDS sftp connection address for EAN (eg sftp.bibds1.co.uk):</label>
             <input type="text" id="ftpeanaddress" name="ftpeanaddress" value="[% ftpeanaddress %]" />
             <br/>
-            <label for="login">BDS username for ftp (eg ptfsuser):</label>
+            <label for="login">BDS username for sftp (eg ptfsuser):</label>
             <input type="text" id="login" name="login" value="[% login %]" />
             <br/>
-            <label for="passwd">BDS password for ftp:</label>
+            <label for="passwd">BDS password for sftp:</label>
             <input type="text" id="passwd" name="passwd" value="[% passwd %]" />
             <br/>
             <label for="upload_isn">Upload path on BDS server for standard orders (eg /deposit/[your username]/Orders):</label>
