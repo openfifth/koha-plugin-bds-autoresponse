@@ -25,7 +25,7 @@ use Net::SFTP::Foreign;
 use Data::Dumper;
 
 ## Here we set our plugin version
-our $VERSION = 1.6;
+our $VERSION = 1.7;
 
 ## Here is our metadata, some keys are required, some are optional
 our $metadata = {
