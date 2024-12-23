@@ -25,7 +25,7 @@ use Net::FTP;
 use Data::Dumper;
 
 ## Here we set our plugin version
-our $VERSION = 1.2;
+our $VERSION = 1.5;
 
 ## Here is our metadata, some keys are required, some are optional
 our $metadata = {
