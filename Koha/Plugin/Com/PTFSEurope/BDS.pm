@@ -810,7 +810,7 @@ sub get_bds_marc_files {
             error => "Cannot change working directory $args->{ftp}->error" };
         @rem_files =
           $args->{ftp}->ls( $self->retrieve_data('custcodeprefix') . '*.mrc',
-            names_only = 1 );
+            names_only => 1 );
         foreach my $rmfl (@rem_files) {
 
             $modt = $args->{ftp}->stat($rmfl)->mtime;
