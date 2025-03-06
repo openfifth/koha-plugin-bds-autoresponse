@@ -1,4 +1,4 @@
-# koha-plugin-bds-autoreponse
+# koha-plugin-bds-autoresponse
 Add an easy to install plugin to support BDS Autoresponse and EDI Model services with Koha ILS
 
 # Installing
@@ -9,8 +9,8 @@ To set up the Koha plugin system you must first make some changes to your instal
 
 * Change `<enable_plugins>0<enable_plugins>` to `<enable_plugins>1</enable_plugins>` in your koha-conf.xml file
 * Confirm that the path to `<pluginsdir>` exists, is correct, and is writable by the web server
-* Add the pluginsdir to your apache PERL5LIB paths and koha-plack startup scripts PERL5LIB
-* You will need to add the following to the apache config for your site:
+* Add the `pluginsdir` to your apache PERL5LIB paths and koha-plack startup scripts PERL5LIB
+* You will need to add the following to the Apache config for your site:
 ```
    Alias /plugin/ "/var/lib/koha/kohadev/plugins/"
    # The stanza below is needed for Apache 2.4+
