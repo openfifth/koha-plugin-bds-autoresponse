@@ -4,6 +4,7 @@ package Koha::Plugin::Com::PTFSEurope::BDS;
 
 use Modern::Perl;
 use Cwd qw( cwd abs_path);
+
 ## Required for all plugins
 use base qw(Koha::Plugins::Base);
 
@@ -14,7 +15,7 @@ use C4::Biblio qw( ModBiblio );
 
 use Business::ISBN;
 use Digest::MD5;
-use File::Copy      qw ( move );
+use File::Copy qw ( move );
 use File::Basename;
 use List::MoreUtils qw( uniq );
 use List::Util      qw( none );
@@ -54,7 +55,7 @@ sub new {
     ## Here, we call the 'new' method for our base class
     ## This runs some additional magic and checking
     ## and returns our actual $self
-    my $self = $class->SUPER::new($args);
+    my $self       = $class->SUPER::new($args);
     my $pluginsdir = C4::Context->config("pluginsdir");
     $pluginsdir = ref($pluginsdir) eq 'ARRAY' ? $pluginsdir->[0] : $pluginsdir;
     $self->{plugindir} = $pluginsdir . "/Koha/Plugin/Com/PTFSEurope/BDS/";
@@ -111,7 +112,7 @@ sub configure {
         my $defaultframework    = $cgi->param('defaultframework')    // "";
         my $program             = $cgi->param('program')             // "";
         my $kohascriptpath      = $cgi->param('kohascriptpath')      // "";
-        my $matchrule           = $cgi->param('matchrule')      // "";
+        my $matchrule           = $cgi->param('matchrule')           // "";
         $self->store_data(
             {
                 logdir              => $logdir,
@@ -179,8 +180,9 @@ sub tool_step1 {
 
 sub submit_bds {
     my ( $self, $iscron ) = @_;
-    my $cgi = $self->{'cgi'};
-    my $template = $self->get_template( { file => 'submit-bds.tt' } ) if !$iscron;
+    my $cgi      = $self->{'cgi'};
+    my $template = $self->get_template( { file => 'submit-bds.tt' } )
+      if !$iscron;
     $logger->warn("Getting keys to submit\n");
     my $keyresult = $self->get_keys_forsubmission();
     if ( $keyresult->{error} ) {
@@ -191,24 +193,26 @@ sub submit_bds {
     my $auresult = $self->autoresponse_ftp( { function => 'send' } );
     if ( $auresult->{error} ) {
         $logger->warn( "Error: " . Dumper( $auresult->{error} ) . "\n" );
-        $template->param( error => $auresult->{error}, fn => "send" ) if !$iscron;
+        $template->param( error => $auresult->{error}, fn => "send" )
+          if !$iscron;
     }
 
     $self->output_html( $template->output() ) if !$iscron;
 }
 
-
 sub import_bds {
     my ( $self, $iscron ) = @_;
     my $cgi = $self->{'cgi'};
 
-    my $template = $self->get_template( { file => 'import-bds.tt' } ) if !$iscron;
+    my $template = $self->get_template( { file => 'import-bds.tt' } )
+      if !$iscron;
 
     $logger->warn("Receiving from BDS\n");
     my $auresult = $self->autoresponse_ftp( { function => 'receive' } );
     if ( $auresult->{error} ) {
         $logger->warn( "Error: " . Dumper( $auresult->{error} ) . "\n" );
-        $template->param( error => $auresult->{error}, fn => "receive" ) if !$iscron;
+        $template->param( error => $auresult->{error}, fn => "receive" )
+          if !$iscron;
     }
     $logger->warn("Fixing charsets\n");
     $self->fix_charsets();
@@ -226,7 +230,8 @@ sub stage_bds {
     my ( $self, $iscron ) = @_;
     my $cgi = $self->{'cgi'};
 
-    my $template = $self->get_template( { file => 'stage-bds.tt' } ) if !$iscron;
+    my $template = $self->get_template( { file => 'stage-bds.tt' } )
+      if !$iscron;
 
     $logger->warn("Staging and loading BDS files to Koha\n");
     my $sbdsresult = $self->stage_bds_files();
@@ -390,17 +395,16 @@ sub autoresponse_ftp {
 sub submit_files {
 
     my ( $self, $args ) = @_;
-    my $directory = $self->{plugindir} .  $args->{type};
+    my $directory = $self->{plugindir} . $args->{type};
     my $ftpaddr   = "";
     if ( !chdir $directory ) {
         return { error => "could not cd to $directory" };
     }
     opendir my $dh, $directory
       or return { error => "Cannot opendir $directory: $!" };
-    my $ccode=$self->retrieve_data('custcodeprefix');
+    my $ccode = $self->retrieve_data('custcodeprefix');
     my @submit_files =
-      grep( /^${ccode}T?\d{9}\.TXT$/,
-      readdir($dh));
+      grep( /^${ccode}T?\d{9}\.TXT$/, readdir($dh) );
 
     closedir $dh;
 
@@ -411,20 +415,20 @@ sub submit_files {
         else {
             $ftpaddr = $self->retrieve_data('ftpeanaddress');
         }
-        my $ftp = Net::SFTP::Foreign->new( 
-            $ftpaddr, 
-            user => $self->retrieve_data('login'),
+        my $ftp = Net::SFTP::Foreign->new(
+            $ftpaddr,
+            user     => $self->retrieve_data('login'),
             password => $self->retrieve_data('passwd'),
-            timeout => 10
-            #Debug => 0, 
+            timeout  => 10
+
+            #Debug => 0,
             #Passive => 1
-        )
-          or return { error => "Cannot connect to $ftpaddr: $@" };
+        ) or return { error => "Cannot connect to $ftpaddr: $@" };
 
         if ( $args->{type} eq "isbns" ) {
             $ftp->setcwd( $self->retrieve_data('upload_isn') )
-              or return {
-                error => "Cannot change working directory $ftp->error" };
+              or
+              return { error => "Cannot change working directory $ftp->error" };
         }
         else {
             $ftp->setcwd( $self->retrieve_data('upload_ean') )
@@ -432,7 +436,7 @@ sub submit_files {
                 error => "Cannot change working directory  $ftp->error" };
         }
         foreach my $filename (@submit_files) {
-            $ftp->put($filename, $filename);
+            $ftp->put( $filename, $filename );
             move( "$directory/$filename", "$directory/submitted/$filename" );
         }
         $ftp->disconnect;
@@ -447,24 +451,25 @@ sub retrieve_files {
     my $getf_retval;
 
     #my $type      = shift;
-    my $directory = $self->{plugindir} .  $args->{type};
+    my $directory = $self->{plugindir} . $args->{type};
     if ( !chdir $directory ) {
         return { error => "could not cd to $directory" };
     }
     opendir my $dh, "$directory/received"
       or return { error => "Cannot opendir $directory: $!" };
-    my $ccode=$self->retrieve_data('custcodeprefix');
+    my $ccode = $self->retrieve_data('custcodeprefix');
     my @already_received =
-      grep ( /^${ccode}?\d{9}.?\.mrc$/ ),
+      grep (/^${ccode}?\d{9}.?\.mrc$/),
       readdir($dh);
     closedir $dh;
 
     my $ftp = Net::SFTP::Foreign->new(
         $self->retrieve_data('ftpaddress'),
-        user => $self->retrieve_data('login'),
+        user     => $self->retrieve_data('login'),
         password => $self->retrieve_data('passwd'),
-        timeout => 10
-        #Debug => 0, 
+        timeout  => 10
+
+        #Debug => 0,
         #Passive => 1
       )
       or return {
@@ -499,17 +504,17 @@ sub get_bds_files {
     foreach my $bdsdirectory (@bdsdirs) {
         $args->{ftp}->setcwd($bdsdirectory)
           or return { error =>
-              "Cannot change working directory to $bdsdirectory -  $args->{ftp}->error " };
+"Cannot change working directory to $bdsdirectory -  $args->{ftp}->error "
+          };
 
-        @files_on_server = $args->{ftp}->ls('.', names_only => 1);
-        my $ccode=$self->retrieve_data('custcodeprefix');
+        @files_on_server = $args->{ftp}->ls( '.', names_only => 1 );
+        my $ccode = $self->retrieve_data('custcodeprefix');
         @download_files =
-          grep ( /${ccode}\d{9}.*.mrc$/,
-          @files_on_server);
+          grep ( /${ccode}\d{9}.*.mrc$/, @files_on_server );
         foreach my $filename (@download_files) {
 
             if ( none { /$filename/ } $args->{already_received} ) {
-                $args->{ftp}->get($filename, $filename);
+                $args->{ftp}->get( $filename, $filename );
             }
         }
     }
@@ -525,20 +530,19 @@ sub fix_charsets {
 
     # eans marcfiles are encoded in MARC-8 convert to utf_8 before load
 
-    my $directory = $self->{plugindir} .  "eans";
+    my $directory = $self->{plugindir} . "eans";
 
     opendir my $dh, $directory
       or return { error => "Cannot opendir $directory: $!" };
-    my $ccode=$self->retrieve_data('custcodeprefix');
-    my @mfiles = grep ( /^${ccode}t\d{9}\.mrc$/,
-      readdir($dh));
+    my $ccode  = $self->retrieve_data('custcodeprefix');
+    my @mfiles = grep ( /^${ccode}t\d{9}\.mrc$/, readdir($dh) );
     closedir $dh;
 
     foreach my $filename (@mfiles) {
         move( "$directory/$filename", "$directory/tmp/$filename" );
         my $cmdline =
 "$program -f MARC-8 -t UTF-8 -l 9=97 -o marc $directory/tmp/$filename >$directory/$filename";
-        system($cmdline );
+        system($cmdline);
     }
 }
 
@@ -547,8 +551,7 @@ sub update_autoresponse {
     my ( $self, $args ) = @_;
     my $directory = $self->{plugindir};
 
-    open( my $arfh, '>>',
-        $self->retrieve_data('logdir') . "autoresponse.log" )
+    open( my $arfh, '>>', $self->retrieve_data('logdir') . "autoresponse.log" )
       or return { error => "Could not open file "
           . $self->retrieve_data('logdir')
           . "autoresponse.log  $!" };
@@ -759,13 +762,12 @@ sub download_new_files {
     my $local_dir = $directory . '/Source';
     opendir( my $dh, $local_dir )
       or return { error => "can't opendir $local_dir: $!" };
-    my $ccode=$self->retrieve_data('custcodeprefix');
+    my $ccode = $self->retrieve_data('custcodeprefix');
     my @loc_files =
-      grep (
-             /^${ccode}.*\.mrc$/
+      grep ( /^${ccode}.*\.mrc$/
           && -f "$local_dir/$_"
           && -M "$local_dir/$_" < 300,
-          readdir($dh));
+        readdir($dh) );
     closedir $dh;
     my %loc_fil = map { $_ => 1 } @loc_files;
 
@@ -773,16 +775,15 @@ sub download_new_files {
     my $username = $self->retrieve_data('login');
     my $password = $self->retrieve_data('passwd');
 
-    my $ftp = Net::SFTP::Foreign->new
-    ( 
+    my $ftp = Net::SFTP::Foreign->new(
         $remote,
-        user => $username,
+        user     => $username,
         password => $password,
-        timeout => 10
-        #Debug => 0, 
-        #Passive => 1 
-    )
-     or return { error => "Cannot connect to BDS: $@" };
+        timeout  => 10
+
+        #Debug => 0,
+        #Passive => 1
+    ) or return { error => "Cannot connect to BDS: $@" };
 
     #$ftp->binary();
     my $gbdsmresult =
@@ -808,7 +809,8 @@ sub get_bds_marc_files {
           or return {
             error => "Cannot change working directory $args->{ftp}->error" };
         @rem_files =
-          $args->{ftp}->ls( $self->retrieve_data('custcodeprefix') . '*.mrc', names_only = 1 );
+          $args->{ftp}->ls( $self->retrieve_data('custcodeprefix') . '*.mrc',
+            names_only = 1 );
         foreach my $rmfl (@rem_files) {
 
             $modt = $args->{ftp}->stat($rmfl)->mtime;
@@ -831,13 +833,12 @@ sub get_potentials {
     my $local_dir = $directory . '/Source';
     opendir( my $dh, $local_dir )
       or return { error => "can't opendir $local_dir: $!" };
-    my $ccode=$self->retrieve_data('custcodeprefix');
+    my $ccode = $self->retrieve_data('custcodeprefix');
     my @loc_files =
-      grep (
-             /^${ccode}.*\.mrc$/
+      grep ( /^${ccode}.*\.mrc$/
           && -f "$local_dir/$_"
           && -M "$local_dir/$_" < 160,
-      readdir($dh));
+        readdir($dh) );
     closedir $dh;
     my @filelist = sort @loc_files;
     return \@filelist;
@@ -845,7 +846,7 @@ sub get_potentials {
 
 sub not_in_archive {
     my ( $self, $args ) = @_;
-    my $directory = $self->{plugindir};
+    my $directory        = $self->{plugindir};
     my $archive_filename = $directory . "Archive/$args->{f}";
     if ( -f $archive_filename ) {
         open my $fh, '<', $archive_filename
@@ -877,28 +878,41 @@ sub stage_and_load() {
     my $directory = $self->{plugindir};
 
     open( my $files_to_stage, '<', $directory . "Inprocess/files_to_stage" )
-      or return { error =>
-          "Could not open file" . $directory . "Inprocess/files_to_stage $!" };
+      or return { error => "Could not open file"
+          . $directory
+          . "Inprocess/files_to_stage $!" };
+
     my $file_to_stage = "";
     my $batchnumber   = "";
-    my $mtch_rule=$self->retrieve_data('matchrule');
+    my $mtch_rule     = $self->retrieve_data('matchrule');
     while (<$files_to_stage>) {
         chomp $_;
         $file_to_stage = $_;
         system( $self->retrieve_data('kohascriptpath')
-              . "stage_file.pl --file " . $directory . "Source/"
+              . "stage_file.pl --file "
+              . $directory
+              . "Source/"
               . $file_to_stage
-              . " --match " . $mtch_rule . " --item-action ignore > " . $directory . "Logs/"
+              . " --match "
+              . $mtch_rule
+              . " --item-action ignore > "
+              . $directory . "Logs/"
               . $file_to_stage
               . ".log" );
-        $batchnumber = `grep '^Batch' ${directory}Logs/${file_to_stage}.log | sed 's/[^0-9]//g'`;
+        $batchnumber =
+`grep '^Batch' ${directory}Logs/${file_to_stage}.log | sed 's/[^0-9]//g'`;
         system( $self->retrieve_data('kohascriptpath')
               . "commit_file.pl --batch-number "
-              . $batchnumber
-              . " >> " . $directory . "Logs/"
+              . $batchnumber . " >> "
+              . $directory . "Logs/"
               . $file_to_stage
               . ".log" );
-        system("cp " . $directory . "Source/" . $file_to_stage . " " . $directory . "Archive/");
+        system( "cp "
+              . $directory
+              . "Source/"
+              . $file_to_stage . " "
+              . $directory
+              . "Archive/" );
 
     }
 }
@@ -925,7 +939,6 @@ q{select import_record_id, isbn from import_biblios where length(isbn) = 10 and 
     }
 }
 
-#Supprimer le plugin avec toutes ses données
 sub uninstall() {
     my ( $self, $args ) = @_;
 }

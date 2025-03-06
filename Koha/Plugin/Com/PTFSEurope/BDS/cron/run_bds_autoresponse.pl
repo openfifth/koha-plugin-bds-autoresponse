@@ -20,23 +20,23 @@
 use Modern::Perl;
 use Getopt::Long qw( GetOptions );
 use Koha::Script;
-#use Koha::Illrequests;
+
 use Koha::Plugins;
 use Data::Dumper;
 
 # Command line option values
-my $get_help = 0;
-my $dry_run = 0;
-my $debug = 0;
-my $env = "dev";
+my $get_help  = 0;
+my $dry_run   = 0;
+my $debug     = 0;
+my $env       = "dev";
 my $toolphase = "";
 
 my $options = GetOptions(
-    'h|help'            => \$get_help,    
-    'dry-run'           => \$dry_run,
-    'debug'             => \$debug,
-    'env=s'             => \$env,
-    'toolphase:s'       => \$toolphase
+    'h|help'      => \$get_help,
+    'dry-run'     => \$dry_run,
+    'debug'       => \$debug,
+    'env=s'       => \$env,
+    'toolphase:s' => \$toolphase
 );
 
 if ($get_help) {
@@ -48,34 +48,38 @@ our $logger =
   Koha::Logger->get( { interface => 'intranet', category => 'bds' } );
 
 # First check we can proceed
-my @bds_plugin = Koha::Plugins->new()->GetPlugins( {'metadata' => {'name'=>'BDS Marc Record Integrator'} } );
+my @bds_plugin = Koha::Plugins->new()
+  ->GetPlugins( { 'metadata' => { 'name' => 'BDS Marc Record Integrator' } } );
 my $bds = $bds_plugin[0];
-if(!$bds)  {
-  $logger->warn("No BDS plugin installed. Cron bailing...\n");
-  exit 0;
+if ( !$bds ) {
+    $logger->warn("No BDS plugin installed. Cron bailing...\n");
+    exit 0;
 }
+
 #  toolphase specified, run only this toolphase
-if ($toolphase eq "submit") {
-   $bds->submit_bds(1);
+if ( $toolphase eq "submit" ) {
+    $bds->submit_bds(1);
 }
-elsif ($toolphase eq "import") {
-   $bds->import_bds(1);
+elsif ( $toolphase eq "import" ) {
+    $bds->import_bds(1);
 }
-elsif ($toolphase eq "stage") {
-   $bds->stage_bds(1);
+elsif ( $toolphase eq "stage" ) {
+    $bds->stage_bds(1);
 }
 else {
-      $logger->warn("Incorrect tool phase parameter supplied of $toolphase to BDS plugin via cron. Not running...\n");
+    $logger->warn(
+"Incorrect tool phase parameter supplied of $toolphase to BDS plugin via cron. Not running...\n"
+    );
 }
 
 sub debug_msg {
-    my ( $msg ) = @_;
+    my ($msg) = @_;
 
-    if (!$debug) {
+    if ( !$debug ) {
         return;
     }
 
-    if (ref $msg eq 'HASH') {
+    if ( ref $msg eq 'HASH' ) {
         use Data::Dumper;
         $msg = Dumper $msg;
     }
