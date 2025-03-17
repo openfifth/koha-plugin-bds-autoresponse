@@ -519,7 +519,7 @@ sub get_bds_files {
             if ( none { /$filename/ } $args->{already_received} ) {
                 $args->{ftp}->get( $filename, $filename )
                 or
-                return { error => "Cannot get file $filename - $ftp->error" };
+                return { error => "Cannot get file $filename - $args->{ftp}->error" };
 
             }
         }
