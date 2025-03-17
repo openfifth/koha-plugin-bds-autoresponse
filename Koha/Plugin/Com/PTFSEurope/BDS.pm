@@ -41,7 +41,7 @@ our $metadata = {
       'Submit isbns to BDS, retrieve results and stage / load to Koha.',
 };
 our $logger =
-  Koha::Logger->get( { interface => 'intranet', category => 'test' } );
+  Koha::Logger->get( { interface => 'intranet', category => 'bdsautoresponse' } );
 
 ## This is the minimum code required for a plugin's 'new' method
 ## More can be added, but none should be removed
@@ -316,6 +316,7 @@ sub get_keys_forsubmission {
     if (@raw_keys) {
         my @isbns;
         my @eans;
+        $logger->warn("Creating keys file ${bds_dir}keys/${normalized_date}_keys \n");
         open( my $keys, '>', "${bds_dir}keys/${normalized_date}_keys" )
           or return { error =>
 "Could not open keys_file ${bds_dir}keys/${normalized_date}_keys : $!"
@@ -396,6 +397,7 @@ sub submit_files {
 
     my ( $self, $args ) = @_;
     my $directory = $self->{plugindir} . $args->{type};
+    $logger->warn("Changing to directory $directory \n");
     my $ftpaddr   = "";
     if ( !chdir $directory ) {
         return { error => "could not cd to $directory" };
@@ -403,12 +405,14 @@ sub submit_files {
     opendir my $dh, $directory
       or return { error => "Cannot opendir $directory: $!" };
     my $ccode = $self->retrieve_data('custcodeprefix');
+    $logger->warn("Looking for file(s) to submit \n");
     my @submit_files =
       grep( /^${ccode}T?\d{9}\.TXT$/, readdir($dh) );
 
     closedir $dh;
 
     if (@submit_files) {
+        $logger->warn("Logging into sftp during submit phase \n");
         if ( $args->{type} eq "isbns" ) {
             $ftpaddr = $self->retrieve_data('ftpaddress');
         }
@@ -436,6 +440,7 @@ sub submit_files {
                 error => "Cannot change working directory  $ftp->error" };
         }
         foreach my $filename (@submit_files) {
+            $logger->warn("Attempting to upload $filename \n");
             $ftp->put( $filename, $filename )
               or
               return { error => "Cannot put file $filename - $ftp->error" };
@@ -465,7 +470,7 @@ sub retrieve_files {
       grep (/^${ccode}?\d{9}.?\.mrc$/),
       readdir($dh);
     closedir $dh;
-
+    $logger->warn("Downloading sftp files \n");
     my $ftp = Net::SFTP::Foreign->new(
         $self->retrieve_data('ftpaddress'),
         user     => $self->retrieve_data('login'),
@@ -512,11 +517,13 @@ sub get_bds_files {
 
         @files_on_server = $args->{ftp}->ls( '.', names_only => 1 );
         my $ccode = $self->retrieve_data('custcodeprefix');
+        $logger->warn("Filtering download files on regex with grep \n");
         @download_files =
           grep ( /${ccode}\d{9}.*.mrc$/, @files_on_server );
         foreach my $filename (@download_files) {
 
             if ( none { /$filename/ } $args->{already_received} ) {
+                $logger->warn("Attempting to download $filename \n");
                 $args->{ftp}->get( $filename, $filename )
                 or
                 return { error => "Cannot get file $filename - $args->{ftp}->error" };
@@ -778,6 +785,8 @@ sub download_new_files {
     closedir $dh;
     my %loc_fil = map { $_ => 1 } @loc_files;
 
+    $logger->warn("Connecting to sftp - stage phase \n");
+
     my $remote   = $self->retrieve_data('ftpaddress');
     my $username = $self->retrieve_data('login');
     my $password = $self->retrieve_data('passwd');
@@ -823,7 +832,7 @@ sub get_bds_marc_files {
             $modt = $args->{ftp}->stat($rmfl)->mtime;
 
             if ( !exists( $args->{loc_fil}{$rmfl} ) ) {
-
+                $logger->warn("Attempting to download marc files $rmfl $locdirectory to Source \n");
                 $args->{ftp}->get( $rmfl, $locdirectory . "Source/$rmfl" )
                   or
                   return { error => "Cannot get file $rmfl - $args->{ftp}->error" };
