@@ -436,7 +436,10 @@ sub submit_files {
                 error => "Cannot change working directory  $ftp->error" };
         }
         foreach my $filename (@submit_files) {
-            $ftp->put( $filename, $filename );
+            $ftp->put( $filename, $filename )
+              or
+              return { error => "Cannot put file $filename - $ftp->error" };
+            $logger->warn("Attempting to move $directory/$filename to $directory/submitted/$filename\n");
             move( "$directory/$filename", "$directory/submitted/$filename" );
         }
         $ftp->disconnect;
@@ -514,7 +517,10 @@ sub get_bds_files {
         foreach my $filename (@download_files) {
 
             if ( none { /$filename/ } $args->{already_received} ) {
-                $args->{ftp}->get( $filename, $filename );
+                $args->{ftp}->get( $filename, $filename )
+                or
+                return { error => "Cannot get file $filename - $ftp->error" };
+
             }
         }
     }
@@ -539,6 +545,7 @@ sub fix_charsets {
     closedir $dh;
 
     foreach my $filename (@mfiles) {
+        $logger->warn("Attempting to move $directory/$filename to $directory/tmp/$filename\n");
         move( "$directory/$filename", "$directory/tmp/$filename" );
         my $cmdline =
 "$program -f MARC-8 -t UTF-8 -l 9=97 -o marc $directory/tmp/$filename >$directory/$filename";
@@ -817,7 +824,10 @@ sub get_bds_marc_files {
 
             if ( !exists( $args->{loc_fil}{$rmfl} ) ) {
 
-                $args->{ftp}->get( $rmfl, $locdirectory . "Source/$rmfl" );
+                $args->{ftp}->get( $rmfl, $locdirectory . "Source/$rmfl" )
+                  or
+                  return { error => "Cannot get file $rmfl - $args->{ftp}->error" };
+
                 `touch --date=\@$modt ${locdirectory}Source/$rmfl`;
             }
         }
