@@ -507,7 +507,7 @@ sub get_bds_files {
     else {
         @bdsdirs = split /\|/, $self->retrieve_data('download_ean');
     }
-    my @files_on_server;
+    my $files_on_server;
     my @download_files;
     foreach my $bdsdirectory (@bdsdirs) {
         $args->{ftp}->setcwd($bdsdirectory)
@@ -515,11 +515,11 @@ sub get_bds_files {
 "Cannot change working directory to $bdsdirectory -  $args->{ftp}->error "
           };
 
-        @files_on_server = $args->{ftp}->ls( '.', names_only => 1 );
+        $files_on_server = $args->{ftp}->ls( '.', names_only => 1 );
         my $ccode = $self->retrieve_data('custcodeprefix');
         $logger->warn("Filtering download files on regex with grep \n");
         @download_files =
-          grep ( /${ccode}\d{9}.*.mrc$/, @files_on_server );
+          grep ( /${ccode}\d{9}.*.mrc$/, @$files_on_server );
         foreach my $filename (@download_files) {
 
             if ( none { /$filename/ } $args->{already_received} ) {
@@ -818,16 +818,16 @@ sub get_bds_marc_files {
     my $locdirectory = $self->{plugindir};
     my @bdsdirs;
     @bdsdirs = split /\|/, $self->retrieve_data('download_isn');
-    my @rem_files;
+    my $rem_files;
     my $modt;
     foreach my $bdsdirectory (@bdsdirs) {
         $args->{ftp}->setcwd($bdsdirectory)
           or return {
             error => "Cannot change working directory $args->{ftp}->error" };
-        @rem_files =
+        $rem_files =
           $args->{ftp}->ls( $self->retrieve_data('custcodeprefix') . '*.mrc',
             names_only => 1 );
-        foreach my $rmfl (@rem_files) {
+        foreach my $rmfl (@$rem_files) {
 
             $modt = $args->{ftp}->stat($rmfl)->mtime;
 
