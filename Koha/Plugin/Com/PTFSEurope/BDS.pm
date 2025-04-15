@@ -26,14 +26,14 @@ use Net::SFTP::Foreign;
 use Data::Dumper;
 
 ## Here we set our plugin version
-our $VERSION = 1.8;
+our $VERSION = 1.9;
 
 ## Here is our metadata, some keys are required, some are optional
 our $metadata = {
     name            => 'BDS Marc Record Integrator',
     author          => 'Bernard Scaife',
     date_authored   => '2023-05-15',
-    date_updated    => "2025-03-17",
+    date_updated    => "2025-04-15",
     minimum_version => '21.11.00.000',
     maximum_version => undef,
     version         => $VERSION,
