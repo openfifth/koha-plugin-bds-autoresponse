@@ -41,7 +41,8 @@ our $metadata = {
       'Submit isbns to BDS, retrieve results and stage / load to Koha.',
 };
 our $logger =
-  Koha::Logger->get( { interface => 'intranet', category => 'bdsautoresponse' } );
+  Koha::Logger->get(
+    { interface => 'intranet', category => 'bdsautoresponse' } );
 
 ## This is the minimum code required for a plugin's 'new' method
 ## More can be added, but none should be removed
@@ -316,7 +317,8 @@ sub get_keys_forsubmission {
     if (@raw_keys) {
         my @isbns;
         my @eans;
-        $logger->warn("Creating keys file ${bds_dir}keys/${normalized_date}_keys \n");
+        $logger->warn(
+            "Creating keys file ${bds_dir}keys/${normalized_date}_keys \n");
         open( my $keys, '>', "${bds_dir}keys/${normalized_date}_keys" )
           or return { error =>
 "Could not open keys_file ${bds_dir}keys/${normalized_date}_keys : $!"
@@ -398,7 +400,7 @@ sub submit_files {
     my ( $self, $args ) = @_;
     my $directory = $self->{plugindir} . $args->{type};
     $logger->warn("Changing to directory $directory \n");
-    my $ftpaddr   = "";
+    my $ftpaddr = "";
     if ( !chdir $directory ) {
         return { error => "could not cd to $directory" };
     }
@@ -442,9 +444,10 @@ sub submit_files {
         foreach my $filename (@submit_files) {
             $logger->warn("Attempting to upload $filename \n");
             $ftp->put( $filename, $filename )
-              or
-              return { error => "Cannot put file $filename - $ftp->error" };
-            $logger->warn("Attempting to move $directory/$filename to $directory/submitted/$filename\n");
+              or return { error => "Cannot put file $filename - $ftp->error" };
+            $logger->warn(
+"Attempting to move $directory/$filename to $directory/submitted/$filename\n"
+            );
             move( "$directory/$filename", "$directory/submitted/$filename" );
         }
         $ftp->disconnect;
@@ -510,6 +513,9 @@ sub get_bds_files {
     my $files_on_server;
     my @download_files;
     foreach my $bdsdirectory (@bdsdirs) {
+        $args->{ftp}->setcwd(undef)
+          or return { error => "Cannot reset working directory" };
+
         $args->{ftp}->setcwd($bdsdirectory)
           or return { error =>
 "Cannot change working directory to $bdsdirectory -  $args->{ftp}->error "
@@ -525,8 +531,8 @@ sub get_bds_files {
             if ( none { /$filename/ } $args->{already_received} ) {
                 $logger->warn("Attempting to download $filename \n");
                 $args->{ftp}->get( $filename, $filename )
-                or
-                return { error => "Cannot get file $filename - $args->{ftp}->error" };
+                  or return { error =>
+                      "Cannot get file $filename - $args->{ftp}->error" };
 
             }
         }
@@ -552,7 +558,9 @@ sub fix_charsets {
     closedir $dh;
 
     foreach my $filename (@mfiles) {
-        $logger->warn("Attempting to move $directory/$filename to $directory/tmp/$filename\n");
+        $logger->warn(
+"Attempting to move $directory/$filename to $directory/tmp/$filename\n"
+        );
         move( "$directory/$filename", "$directory/tmp/$filename" );
         my $cmdline =
 "$program -f MARC-8 -t UTF-8 -l 9=97 -o marc $directory/tmp/$filename >$directory/$filename";
@@ -821,6 +829,9 @@ sub get_bds_marc_files {
     my $rem_files;
     my $modt;
     foreach my $bdsdirectory (@bdsdirs) {
+        $args->{ftp}->setcwd(undef)
+          or return { error => "Cannot reset working directory" };
+
         $args->{ftp}->setcwd($bdsdirectory)
           or return {
             error => "Cannot change working directory $args->{ftp}->error" };
@@ -832,10 +843,12 @@ sub get_bds_marc_files {
             $modt = $args->{ftp}->stat($rmfl)->mtime;
 
             if ( !exists( $args->{loc_fil}{$rmfl} ) ) {
-                $logger->warn("Attempting to download marc files $rmfl $locdirectory to Source \n");
+                $logger->warn(
+"Attempting to download marc files $rmfl $locdirectory to Source \n"
+                );
                 $args->{ftp}->get( $rmfl, $locdirectory . "Source/$rmfl" )
-                  or
-                  return { error => "Cannot get file $rmfl - $args->{ftp}->error" };
+                  or return {
+                    error => "Cannot get file $rmfl - $args->{ftp}->error" };
 
                 `touch --date=\@$modt ${locdirectory}Source/$rmfl`;
             }
