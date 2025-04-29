@@ -42,7 +42,7 @@ echo -e "Previous version: $PREVIOUS_VERSION"
 echo -e "New version: $NEW_VERSION"
 
 # Comparing versions
-VERSION_COMPARISON=$(echo -e "$PREVIOUS_VERSION_NUMBER\n$NEW_VERSION_NUMBER" | sort -V | head -n 1)
+VERSION_COMPARISON=$(echo -e "$PREVIOUS_VERSION_NUMBER\n$NEW_VERSION_NUMBER" | sort -V | tail -n 1)
 echo -e "Version comparison: $VERSION_COMPARISON"
 
 if [ "$VERSION_COMPARISON" != "$PREVIOUS_VERSION_NUMBER" ]; then
