@@ -425,7 +425,8 @@ sub submit_files {
             $ftpaddr,
             user     => $self->retrieve_data('login'),
             password => $self->retrieve_data('passwd'),
-            timeout  => 10
+            timeout  => 10,
+            more     => [qw( -o StrictHostKeyChecking=no )],
 
             #Debug => 0,
             #Passive => 1
