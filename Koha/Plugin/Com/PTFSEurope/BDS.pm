@@ -479,7 +479,8 @@ sub retrieve_files {
         $self->retrieve_data('ftpaddress'),
         user     => $self->retrieve_data('login'),
         password => $self->retrieve_data('passwd'),
-        timeout  => 10
+        timeout  => 10,
+        more     => [qw( -o StrictHostKeyChecking=no )],
 
         #Debug => 0,
         #Passive => 1
@@ -804,7 +805,8 @@ sub download_new_files {
         $remote,
         user     => $username,
         password => $password,
-        timeout  => 10
+        timeout  => 10,
+        more     => [qw( -o StrictHostKeyChecking=no )],
 
         #Debug => 0,
         #Passive => 1
