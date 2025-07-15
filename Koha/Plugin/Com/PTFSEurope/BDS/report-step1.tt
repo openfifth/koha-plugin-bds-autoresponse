@@ -12,8 +12,11 @@
 	<h3>Convert Koha SQL to Metabase SQL</h3>
         
 	<form method="get">
-                <input type="hidden" name="class" value="[% CLASS %]"/>
-                <input type="hidden" name="method" value="[% METHOD %]"/>
+		<!-- Load CSRF Token -->
+        [% INCLUDE 'csrf-token.inc' %]
+
+		<input type="hidden" name="class" value="[% CLASS %]"/>
+		<input type="hidden" name="method" value="[% METHOD %]"/>
 
 		<p>Paste SQL from a report in the Koha report wiki. <a href="https://wiki.koha-community.org/wiki/SQL_Reports_Library" target="_blank">Go to wiki</a></p>
         <textarea name="kohasql" rows="4" cols="50"></textarea>
