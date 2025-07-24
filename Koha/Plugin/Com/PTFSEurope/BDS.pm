@@ -26,7 +26,8 @@ use Net::SFTP::Foreign;
 use Data::Dumper;
 
 ## Here we set our plugin version
-our $VERSION = 1.12;
+our $VERSION = '1.12.0';
+our $MINIMUM_VERSION = "22.05.00.000"; 
 
 ## Here is our metadata, some keys are required, some are optional
 our $metadata = {
@@ -34,7 +35,7 @@ our $metadata = {
     author          => 'Bernard Scaife',
     date_authored   => '2023-05-15',
     date_updated    => '2025-07-24',
-    minimum_version => '21.11.00.000',
+    minimum_version => $MINIMUM_VERSION,
     maximum_version => undef,
     version         => $VERSION,
     description     =>
