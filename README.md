@@ -1,5 +1,5 @@
 # koha-plugin-bds-autoresponse
-Adds an easy to install plugin to support BDS Autoresponse and EDI Model services with Koha ILS
+Add an easy to install plugin to support BDS Autoresponse and EDI Model services with Koha ILS
 
 # Installing
 
