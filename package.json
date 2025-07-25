@@ -18,5 +18,8 @@
     "module": "Koha::Plugin::Com::PTFSEurope::BDS",
     "pm_path": "Koha/Plugin/Com/PTFSEurope/BDS.pm"
   },
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "package-lock.json": "^1.0.0"
+  }
 }
