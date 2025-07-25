@@ -2,7 +2,7 @@
   "name": "koha-plugin-bds",
   "version": "1.12.0",
   "previous_version": "1.11.0",
-  "description": "Koha BDS plugin",
+  "description": "Koha BDS plugin integration",
   "main": "index.js",
   "scripts": {
     "version:patch": "node increment_version.js patch | cat",
