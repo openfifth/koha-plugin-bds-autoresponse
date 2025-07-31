@@ -217,17 +217,17 @@ sub import_bds {
 
     my $template = $self->get_template( { file => 'import-bds.tt' } )
       if !$iscron;
-
-    $logger->warn("Receiving from BDS\n");
+    
+    print { $self->{bdslog} } "$todaysdate : Receiving from BDS\n";
     my $auresult = $self->autoresponse_ftp( { function => 'receive' } );
     if ( $auresult->{error} ) {
         $logger->warn( "Error: " . Dumper( $auresult->{error} ) . "\n" );
         $template->param( error => $auresult->{error}, fn => "receive" )
           if !$iscron;
     }
-    $logger->warn("Fixing charsets\n");
+    print { $self->{bdslog} } "$todaysdate : Fixing charsets\n";    
     $self->fix_charsets();
-    $logger->warn("Update autoresponse\n");
+    print { $self->{bdslog} } "$todaysdate : Running update_autoresponse\n";    
     my $uarresult = $self->update_autoresponse();
     if ( $uarresult->{error} ) {
         $logger->warn( "Error: " . Dumper( $uarresult->{error} ) . "\n" );
@@ -477,8 +477,7 @@ sub retrieve_files {
 
     my ( $self, $args ) = @_;
     my $getf_retval;
-
-    #my $type      = shift;
+    
     my $directory = $self->{plugindir} . $args->{type};
     if ( !chdir $directory ) {
         return { error => "could not cd to $directory" };
@@ -490,14 +489,14 @@ sub retrieve_files {
       grep (/^${ccode}?\d{9}.?\.mrc$/),
       readdir($dh);
     closedir $dh;
-    $logger->warn("Downloading sftp files \n");
+    print { $self->{bdslog} } "$todaysdate : " . scalar @already_received . " previous files noted so we don't download them again\n";                         
+    print { $self->{bdslog} } "$todaysdate : Attempting to log into sftp during retrieve phase \n";                 
     my $ftp = Net::SFTP::Foreign->new(
         $self->retrieve_data('ftpaddress'),
         user     => $self->retrieve_data('login'),
         password => $self->retrieve_data('passwd'),
         timeout  => 10,
         more     => [qw( -o StrictHostKeyChecking=no )],
-
         #Debug => 0,
         #Passive => 1
       )
@@ -519,8 +518,7 @@ sub retrieve_files {
 sub get_bds_files {
 
     my ( $self, $args ) = @_;
-
-    #my ($type, $ftp, @already_received) = @_;
+    
     my @bdsdirs;
     if ( $args->{type} eq "isbns" ) {
         @bdsdirs = split /\|/, $self->retrieve_data('download_isn');
@@ -541,13 +539,13 @@ sub get_bds_files {
 
         $files_on_server = $args->{ftp}->ls( '.', names_only => 1 );
         my $ccode = $self->retrieve_data('custcodeprefix');
-        $logger->warn("Filtering download files on regex with grep \n");
+        print { $self->{bdslog} } "$todaysdate : Filtering download files in folder $bdsdirectory on regex with grep \n";                         
         @download_files =
           grep ( /${ccode}\d{9}.*.mrc$/, @$files_on_server );
         foreach my $filename (@download_files) {
 
             if ( none { /$filename/ } $args->{already_received} ) {
-                $logger->warn("Attempting to download $filename \n");
+                print { $self->{bdslog} } "$todaysdate : Attempting to download $filename \n";                                         
                 $args->{ftp}->get( $filename, $filename )
                   or return { error =>
                       "Cannot get file $filename - $args->{ftp}->error" };
@@ -576,9 +574,7 @@ sub fix_charsets {
     closedir $dh;
 
     foreach my $filename (@mfiles) {
-        $logger->warn(
-"Attempting to move $directory/$filename to $directory/tmp/$filename\n"
-        );
+        print { $self->{bdslog} } "$todaysdate : Attempting to move $directory/$filename to $directory/tmp/$filename\n";                                         
         move( "$directory/$filename", "$directory/tmp/$filename" );
         my $cmdline =
 "$program -f MARC-8 -t UTF-8 -l 9=97 -o marc $directory/tmp/$filename >$directory/$filename";
@@ -590,19 +586,22 @@ sub update_autoresponse {
 
     my ( $self, $args ) = @_;
     my $directory = $self->{plugindir};
-
+   print { $self->{bdslog} } "$todaysdate : Opening autoresponse.log file for append\n";
     open( my $arfh, '>>', $self->retrieve_data('logdir') . "autoresponse.log" )
       or return { error => "Could not open file "
           . $self->retrieve_data('logdir')
           . "autoresponse.log  $!" };
 
-    my $keys = $self->get_keys( { directory => $directory } );
+    print { $self->{bdslog} } "$todaysdate : Getting keys\n";
+    my $keys = $self->get_keys( { directory => $directory } );    
     our $dbh      = C4::Context->dbh;
     our $item_sth = $dbh->prepare(
 q{update items set itemcallnumber = ? where biblionumber = ? and notforloan = -1}
     );
-
+    print { $self->{bdslog} } "$todaysdate : Getting marc files\n";
     my @marcfiles = $self->get_marcfiles( { bds_dir => $directory } );
+    print { $self->{bdslog} } "$todaysdate : Found " . scalar @marcfiles . " marc files\n";
+    print { $self->{bdslog} } "$todaysdate : Loop through the marc files and update the database with itemcallnumber etc\n";
     foreach my $marcfilename (@marcfiles) {
 
         my $marcfile = MARC::File::USMARC->in($marcfilename);
@@ -623,6 +622,7 @@ q{update items set itemcallnumber = ? where biblionumber = ? and notforloan = -1
             print $arfh "Rec:$control_number ";
             if ( exists $keys->{$control_number} ) {
                 say "matches biblio $keys->{$control_number}";
+                print { $self->{bdslog} } "$todaysdate : Found match for biblio $keys->{$control_number} - preparing an update statement for db\n";
                 $self->update_biblio(
                     {
                         keys     => $keys->{$control_number},
@@ -632,11 +632,13 @@ q{update items set itemcallnumber = ? where biblionumber = ? and notforloan = -1
                 );
             }
             else {
+                print { $self->{bdslog} } "$todaysdate : NO MATCH for control  $control_number - nothing to update in db\n";
                 say "NO MATCH";
             }
         }
 
         $marcfile->close();
+        print { $self->{bdslog} } "$todaysdate : Moving $marcfilename to the received subfolder of isbn/ean\n";
         my $received_filename = $marcfilename;
         if ( $received_filename =~ s#(isbn|ean)s#$1s/received# ) {
             move( $marcfilename, $received_filename );
@@ -651,7 +653,7 @@ sub update_biblio {
 
     #my ( $biblionumber, $m, $item_sth ) = @_;
     my $recid = shift;
-
+    print { $self->{bdslog} } "$todaysdate : Getting leader, frameworkcode and modifying biblio $args->{biblionumber} \n";
     my $leader = $args->{m}->leader();
     my $frameworkcode =
       $self->get_framework( { framework => substr( $leader, 6, 2 ) } );
@@ -696,8 +698,10 @@ sub get_keys {
     #my $directory = shift;
     my $directory = $args->{directory} . 'keys';
     my $k         = {};
+    print { $self->{bdslog} } "$todaysdate : Opening directory $directory\n";
     opendir my $dh, $directory
       or return { error => "Cannot open $directory: $!" };
+    print { $self->{bdslog} } "$todaysdate : Looking for and adding keys - then moving keys file to submitted folder\n";
     while ( readdir $dh ) {
         if (/^\d{8}_keys/) {
             my $filename     = "$directory/$_";
@@ -723,7 +727,7 @@ sub get_marcfiles {
 
     #my $bds_dir = shift;
     my @files;
-
+    print { $self->{bdslog} } "$todaysdate : Looking for marc files in the isbn and eans directories amd adding to list\n"; 
     for my $subdir (qw(isbns eans)) {
         my $directory = $dir . $subdir;
         opendir my $dh, $directory
