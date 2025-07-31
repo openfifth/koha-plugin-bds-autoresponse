@@ -22,7 +22,8 @@ use List::Util      qw( none );
 use MARC::Record;
 use MARC::File::USMARC;
 use Net::SFTP::Foreign;
-
+use POSIX qw(strftime);
+use IO::Pty;
 use Data::Dumper;
 
 ## Here we set our plugin version
@@ -45,6 +46,8 @@ our $logger =
   Koha::Logger->get(
     { interface => 'intranet', category => 'bdsautoresponse' } );
 
+our $todaysdate = strftime("%Y-%m-%d %H:%M:%S", localtime);
+
 ## This is the minimum code required for a plugin's 'new' method
 ## More can be added, but none should be removed
 sub new {
@@ -57,10 +60,17 @@ sub new {
     ## Here, we call the 'new' method for our base class
     ## This runs some additional magic and checking
     ## and returns our actual $self
+
+    my $plugin_file = abs_path(__FILE__);
+    my $plugin_dir = dirname($plugin_file);
     my $self       = $class->SUPER::new($args);
-    my $pluginsdir = C4::Context->config("pluginsdir");
-    $pluginsdir = ref($pluginsdir) eq 'ARRAY' ? $pluginsdir->[0] : $pluginsdir;
-    $self->{plugindir} = $pluginsdir . "/Koha/Plugin/Com/PTFSEurope/BDS/";
+    $self->{plugindir} = $plugin_dir . "/BDS/";
+
+    open( my $bdslog, '>>', $self->retrieve_data('logdir') . "bds.log" )
+       or return { error => "Could not open file "
+	  . $self->retrieve_data('logdir')
+	  . "bds.log  $!" };    
+    $self->{bdslog} = $bdslog;      
 
     return $self;
 }
@@ -150,18 +160,17 @@ sub tool {
     unless ( $cgi->param('submitted') ) {
         $self->tool_step1();
     }
-    else {
-        #$logger->warn(Dumper($cgi));
-        if ( $cgi->param('bdschoice') eq "submit" ) {
-            $logger->warn("Submitting...\n");
+    else {        
+        if ( $cgi->param('bdschoice') eq "submit" ) {            
+            print { $self->{bdslog} } "$todaysdate : Submitting...\n";
             $self->submit_bds();
         }
-        elsif ( $cgi->param('bdschoice') eq "import" ) {
-            $logger->warn("Importing...\n");
+        elsif ( $cgi->param('bdschoice') eq "import" ) {            
+            print { $self->{bdslog} } "$todaysdate : Importing...\n";
             $self->import_bds();
         }
         elsif ( $cgi->param('bdschoice') eq "stage" ) {
-            $logger->warn("Staging...\n");
+            print { $self->{bdslog} } "$todaysdate : Staging...\n";
             $self->stage_bds();
         }
         else {
@@ -185,13 +194,13 @@ sub submit_bds {
     my $cgi      = $self->{'cgi'};
     my $template = $self->get_template( { file => 'submit-bds.tt' } )
       if !$iscron;
-    $logger->warn("Getting keys to submit\n");
+    print { $self->{bdslog} } "$todaysdate : Getting keys to submit\n";    
     my $keyresult = $self->get_keys_forsubmission();
     if ( $keyresult->{error} ) {
         $logger->warn( "Error: " . Dumper( $keyresult->{error} ) . "\n" );
         $template->param( error => $keyresult->{error} ) if !$iscron;
     }
-    $logger->warn("Sending ISBNs to BDS\n");
+    print { $self->{bdslog} } "$todaysdate : Attempting to send ISBNs and EANs to BDS\n";       
     my $auresult = $self->autoresponse_ftp( { function => 'send' } );
     if ( $auresult->{error} ) {
         $logger->warn( "Error: " . Dumper( $auresult->{error} ) . "\n" );
@@ -258,20 +267,22 @@ sub get_keys_forsubmission {
 
     my ( $self, $args ) = @_;
 
- # scan the edi trace log for records generated from EDI quotes
- # that lack a matching bib
- # extract the search key and biblio number so that search keys can be submitted
+ # Scan the edi trace log for records generated from EDI quotes that lack a matching bib
+ # Extract the search key and biblio number so that search keys can be submitted
  # to BDS
 
     my $logfile =
       $self->retrieve_data('logdir') . $self->retrieve_data('editracefilename');
     my $bds_dir = $self->{plugindir};
     my $date;
+    # comment in and adjust  line below to allow for getting keys from a different date to today
+    $date="2025/07/28";
 
     if (@ARGV) {
         $date = shift;
         if ( $date !~ m/^\d{4}\/\d{2}\/\d{2}/ ) {
-            say 'Invalid date passed : use format YYYY/MM/DD';
+            print { $self->{bdslog} } "$todaysdate : Error: Invalid date parameter passed : use format YYYY/MM/DD. Exiting early. \n";                   
+            say "Invalid date parameter passed : use format YYYY/MM/DD. Exiting.";
             exit 1;
         }
     }
@@ -281,31 +292,34 @@ sub get_keys_forsubmission {
         $date = sprintf '%4d/%02d/%02d', $t[5] + 1900, $t[4] + 1, $t[3];
     }
 
+    
+
     my $normalized_date = $date;
     $normalized_date =~ s#/##g;
     my @raw_keys;
-
-    $logger->warn("Try to open EDI trace log $logfile \n");
+    
+    print { $self->{bdslog} } "$todaysdate : Trying to open EDI trace log $logfile and scan for records created / updated on $date\n";                   
     open( my $fh, '<', $logfile )
-      or return { error => "unable to open EDI log file at $logfile" };
+      or return { error => "Unable to open EDI trace log file at $logfile so returning" };
 
     my ( $key, $bib );
     while (<$fh>) {
         chomp;
-        if (/^$date/) {    # eg 2021/06/22
+        if (/$date/) {    # eg 2021/06/22
             my $line = substr $_, 20;
-            if ( $line =~ m/^Checking db for matches with ([\dXx]+)/ ) {
+            if ( $line =~ m/Checking db for matches with ([\dXx]+)/ ) {
                 $key = $1;
                 undef $bib;
             }
-            elsif ( $line =~ m/^New biblio added (\d+)/ ) {
+            elsif ( $line =~ m/^New biblio added (\d+)/  || $line =~ m/Added biblio: (\d+)/) {
+                # backwards compatabile for pre-v25 Koha editrace log formats too.
                 $bib = $1;
                 push @raw_keys, "$key|$bib";
             }
-            elsif ( $line =~ m/^Match found/ ) {
+            elsif ( $line =~ m/Match found/ ) {
                 undef $key;
             }
-            elsif ( $line =~ m/^Updating bib:(\d+) id:([\dXx]+)/ )
+            elsif ( $line =~ m/Updating bib:(\d+) id:([\dXx]+)/ )
             {    # invoice updated title
                 push @raw_keys, "$2|$1";
             }
@@ -314,12 +328,12 @@ sub get_keys_forsubmission {
     close $fh;
 
     @raw_keys = uniq @raw_keys;    # dont submit duplicates
+    print { $self->{bdslog} } "$todaysdate : " . scalar @raw_keys . " keys found to process for date " . $date . "\n";      
 
     if (@raw_keys) {
         my @isbns;
         my @eans;
-        $logger->warn(
-            "Creating keys file ${bds_dir}keys/${normalized_date}_keys \n");
+        print { $self->{bdslog} } "$todaysdate : Creating keys file ${bds_dir}keys/${normalized_date}_keys \n";    
         open( my $keys, '>', "${bds_dir}keys/${normalized_date}_keys" )
           or return { error =>
 "Could not open keys_file ${bds_dir}keys/${normalized_date}_keys : $!"
@@ -357,6 +371,7 @@ sub get_keys_forsubmission {
                 return { error => $eankeysfile->{error} };
             }
         }
+        print { $self->{bdslog} } "$todaysdate : " . scalar @isbns . " isbns and " . scalar @eans . " eans found to submit.\n";            
 
     }
 
@@ -400,7 +415,7 @@ sub submit_files {
 
     my ( $self, $args ) = @_;
     my $directory = $self->{plugindir} . $args->{type};
-    $logger->warn("Changing to directory $directory \n");
+    print { $self->{bdslog} } "$todaysdate : Changing to directory $directory\n";         
     my $ftpaddr = "";
     if ( !chdir $directory ) {
         return { error => "could not cd to $directory" };
@@ -408,14 +423,14 @@ sub submit_files {
     opendir my $dh, $directory
       or return { error => "Cannot opendir $directory: $!" };
     my $ccode = $self->retrieve_data('custcodeprefix');
-    $logger->warn("Looking for file(s) to submit \n");
+    print { $self->{bdslog} } "$todaysdate : Looking for file(s) to submit with grep\n";         
     my @submit_files =
       grep( /^${ccode}T?\d{9}\.TXT$/, readdir($dh) );
 
     closedir $dh;
-
+    print { $self->{bdslog} } "$todaysdate : Found " . scalar @submit_files . " to submit\n";     
     if (@submit_files) {
-        $logger->warn("Logging into sftp during submit phase \n");
+        print { $self->{bdslog} } "$todaysdate : Attempting to log into  sftp during submit phase \n";             
         if ( $args->{type} eq "isbns" ) {
             $ftpaddr = $self->retrieve_data('ftpaddress');
         }
@@ -427,29 +442,29 @@ sub submit_files {
             user     => $self->retrieve_data('login'),
             password => $self->retrieve_data('passwd'),
             timeout  => 10,
-            more     => [qw( -o StrictHostKeyChecking=no )],
-
+            more     => [qw( -o StrictHostKeyChecking=no)],
             #Debug => 0,
             #Passive => 1
         ) or return { error => "Cannot connect to $ftpaddr: $@" };
 
+        if (my $err = $ftp->error) {    
+            print { $self->{bdslog} } "ftp connection attempt didn't connect: $err\n";                         
+        }
         if ( $args->{type} eq "isbns" ) {
             $ftp->setcwd( $self->retrieve_data('upload_isn') )
               or
-              return { error => "Cannot change working directory $ftp->error" };
+              return { error => "Cannot change working directory to " . $self->retrieve_data('upload_isn') . " - " . $ftp->error };
         }
         else {
             $ftp->setcwd( $self->retrieve_data('upload_ean') )
               or return {
-                error => "Cannot change working directory  $ftp->error" };
+                error => "Cannot change working directory to " . $self->retrieve_data('upload_ean') . " - " . $ftp->error };
         }
         foreach my $filename (@submit_files) {
-            $logger->warn("Attempting to upload $filename \n");
+            print { $self->{bdslog} } "$todaysdate : Attempting to upload $filename \n";                         
             $ftp->put( $filename, $filename )
               or return { error => "Cannot put file $filename - $ftp->error" };
-            $logger->warn(
-"Attempting to move $directory/$filename to $directory/submitted/$filename\n"
-            );
+            print { $self->{bdslog} } "$todaysdate : Attempting to move $directory/$filename to $directory/submitted/$filename\n";                         
             move( "$directory/$filename", "$directory/submitted/$filename" );
         }
         $ftp->disconnect;
