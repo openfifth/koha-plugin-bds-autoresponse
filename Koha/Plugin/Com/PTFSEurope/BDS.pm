@@ -243,8 +243,7 @@ sub stage_bds {
 
     my $template = $self->get_template( { file => 'stage-bds.tt' } )
       if !$iscron;
-
-    $logger->warn("Staging and loading BDS files to Koha\n");
+    print { $self->{bdslog} } "$todaysdate : Staging and loading BDS files to Koha\n";    
     my $sbdsresult = $self->stage_bds_files();
     if ( ref $sbdsresult eq "HASH" && $sbdsresult->{error} ) {
         $logger->warn( "Error: " . Dumper( $sbdsresult->{error} ) . "\n" );
@@ -256,8 +255,8 @@ sub stage_bds {
         $template->param( error => $sandlresult->{error} ) if !$iscron;
     }
 
-    # Convert resevoir 10 character isbns to 13-digit forms
-    $logger->warn("Normalising 10 to 14 digit isbns\n");
+    # Convert resevoir 10 character isbns to 13-digit forms    
+    print { $self->{bdslog} } "$todaysdate : Normalising 10 to 14 digit isbns\n";
     $self->normalize_isbns();
 
     $self->output_html( $template->output() ) if !$iscron;
@@ -756,7 +755,7 @@ sub stage_bds_files {
 
     my ( $self, $args ) = @_;
     my $directory = $self->{plugindir};
-
+    print { $self->{bdslog} } "$todaysdate : Looking for new files to download\n";
     my $dlresult = $self->download_new_files();
     if ( $dlresult->{error} ) {
         return $dlresult->{error};
@@ -768,6 +767,7 @@ q|select distinct file_name from import_batches where file_name regexp "$self->r
  order by file_name|;
 
     my $loaded_files = $dbh->selectcol_arrayref($sql);
+    print { $self->{bdslog} } "$todaysdate : Checking what has been imported to Koha database already\n";
 
     my $potential_files = $self->get_potentials();
     if ( ref $potential_files eq "HASH" && $potential_files->{error} ) {
@@ -777,7 +777,7 @@ q|select distinct file_name from import_batches where file_name regexp "$self->r
     my %loaded = map { $_ => 1 } @{$loaded_files};
 
     my @files_to_load;
-
+    print { $self->{bdslog} } "$todaysdate : Checking file is not in the local Archive folder as a previous download\n";
     foreach my $f ( @{$potential_files} ) {
         my $niaresult = $self->not_in_archive( { f => $f } );
         if ( ref $niaresult eq "HASH" && $niaresult->{error} ) {
@@ -787,7 +787,8 @@ q|select distinct file_name from import_batches where file_name regexp "$self->r
             push @files_to_load, $f;
         }
     }
-
+    print { $self->{bdslog} } "$todaysdate : " . scalar @files_to_load . " files to load detected\n";
+    print { $self->{bdslog} } "$todaysdate : Making a list of the files_to_stage and writing to Inprocess folder\n";
     my $stage_file = $directory . '/Inprocess/files_to_stage';
     open my $fh, '>', $stage_file
       or return { error => "Cannot write to $stage_file : $!" };
@@ -802,7 +803,7 @@ sub download_new_files {
 
     my ( $self, $args ) = @_;
     my $directory = $self->{plugindir};
-
+    print { $self->{bdslog} } "$todaysdate : Looking for existing mrc files in Source folder\n";
     my $local_dir = $directory . '/Source';
     opendir( my $dh, $local_dir )
       or return { error => "can't opendir $local_dir: $!" };
@@ -814,8 +815,7 @@ sub download_new_files {
         readdir($dh) );
     closedir $dh;
     my %loc_fil = map { $_ => 1 } @loc_files;
-
-    $logger->warn("Connecting to sftp - stage phase \n");
+    print { $self->{bdslog} } "$todaysdate : Connecting to sftp - stage phase\n";    
 
     my $remote   = $self->retrieve_data('ftpaddress');
     my $username = $self->retrieve_data('login');
@@ -848,13 +848,15 @@ sub get_bds_marc_files {
     my ( $self, $args ) = @_;
     my $locdirectory = $self->{plugindir};
     my @bdsdirs;
+    print { $self->{bdslog} } "$todaysdate : Getting download directories from config to loop through\n";
     @bdsdirs = split /\|/, $self->retrieve_data('download_isn');
     my $rem_files;
     my $modt;
     foreach my $bdsdirectory (@bdsdirs) {
+        print { $self->{bdslog} } "$todaysdate : Trawling folder $bdsdirectory\n";
         $args->{ftp}->setcwd(undef)
           or return { error => "Cannot reset working directory" };
-
+        
         $args->{ftp}->setcwd($bdsdirectory)
           or return {
             error => "Cannot change working directory $args->{ftp}->error" };
@@ -866,9 +868,7 @@ sub get_bds_marc_files {
             $modt = $args->{ftp}->stat($rmfl)->mtime;
 
             if ( !exists( $args->{loc_fil}{$rmfl} ) ) {
-                $logger->warn(
-"Attempting to download marc files $rmfl $locdirectory to Source \n"
-                );
+                print { $self->{bdslog} } "$todaysdate : Attempting to download marc files $rmfl $locdirectory to Source\n";
                 $args->{ftp}->get( $rmfl, $locdirectory . "Source/$rmfl" )
                   or return {
                     error => "Cannot get file $rmfl - $args->{ftp}->error" };
@@ -895,6 +895,7 @@ sub get_potentials {
           && -M "$local_dir/$_" < 160,
         readdir($dh) );
     closedir $dh;
+    print { $self->{bdslog} } "$todaysdate : " . scalar @loc_files . " local files found which need checking in case they were updated since we last downloaded them.\n";
     my @filelist = sort @loc_files;
     return \@filelist;
 }
