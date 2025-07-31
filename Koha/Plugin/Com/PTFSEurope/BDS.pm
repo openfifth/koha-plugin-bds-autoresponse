@@ -275,7 +275,7 @@ sub get_keys_forsubmission {
     my $bds_dir = $self->{plugindir};
     my $date;
     # comment in and adjust  line below to allow for getting keys from a different date to today
-    $date="2025/07/28";
+    #$date="2025/07/28";
 
     if (@ARGV) {
         $date = shift;
