@@ -42,9 +42,21 @@ $(document).ready(function() {
             <label for="logdir">Koha log folder (eg /var/log/koha/):</label>
             <input type="text" id="logdir" name="logdir" value="[% logdir %]" />
             <br/>
-            <label for="editracefilename">EDI trace filename without folder (eg editrace.log):</label>
-            <input type="text" id="logdir" name="editracefilename" value="[% editracefilename %]" />
-            <br/>
+            <p>Do you wish to use the EDI trace log to decide what to submit or a Koha report?</p>
+             <input type="radio" id="option_edi" name="bdssourceoption" value="EDI"
+                [% IF bdssourceoption == 'EDI' %]checked="checked"[% END %]>
+            <label for="option_edi">EDI trace log</label><br>
+
+            <input type="radio" id="option_report" name="bdssourceoption" value="Report"
+                [% IF bdssourceoption == 'Report' %]checked="checked"[% END %]>
+            <label for="option_report">Koha mySQL Report</label><br><br>
+
+            <div id="edi_box" style="display: none;">
+                <label for="edi_value">Enter EDI trace log filename (without path):</label><br>
+                <input type="text" id="edi_value" name="editracefilename" value="[% editracefilename || '' %]" /><br>
+            </div>
+            </br>
+            </br>
             <label for="custcodeprefix">BDS customer code prefix (eg ptfs):</label>
             <input type="text" id="custcodeprefix" name="custcodeprefix" value="[% custcodeprefix %]" />
             <br/>
@@ -111,6 +123,20 @@ $(document).ready(function() {
         <fieldset id="instructions">
             <legend>Setup instructions</legend>
 <div>
+<p>Source of record selection for submission:</p>
+<p>You can either use the editrace log (as in previous versions) or base your submissions on a Koha mySQL report. The latter should be set up and run in advance 
+of submitting keys to BDS. The format of the result should be as follows:</p>
+<p>ISBN|biblionumber</p>
+<p>There should be one record per line and only one isbn should be submitted - the first if multiples are in the record and that single ISBN must only be the ISBN itself and not include extra content such as (pbk)</p>
+<p>The destination of the report results file should be under the plugin's Logs folder and called bdssubmissions.txt</p>
+<p>Sample report:</p>
+<p> SELECT DISTINCT CONCAT(biblioitems.biblionumber, "|", isbn)</p>
+<p> FROM biblioitems</p>
+<p> LEFT JOIN biblio USING (biblionumber)</p>
+<p> WHERE DATE(datecreated) > '2025-06-20'</p>
+</div>
+
+<div>
 <p>Download path on BDS server:</p>
 <p>These are the folders on the BDS server from which records are downloaded. They differ according to whether you are an academic or public library. The pipe | symbol separates multiple paths.</p>
 <p>These are the ones for academic libraries:</p>
@@ -144,5 +170,19 @@ at 22:00 nightly, and download them at 23:00, following which the plugin will at
 
         <input type="submit" value="Save configuration" />
     </form>
+
+<script>
+function updateFields() {
+    var edi = document.getElementById('option_edi').checked;    
+    document.getElementById('edi_box').style.display = edi ? '' : 'none';    
+}
+
+// Attach the function to radio button changes
+document.getElementById('option_edi').addEventListener('change', updateFields);
+document.getElementById('option_report').addEventListener('change', updateFields);
+
+// Run once on page load to show the correct box if editing
+updateFields();
+</script>    
 
 [% INCLUDE 'intranet-bottom.inc' %]

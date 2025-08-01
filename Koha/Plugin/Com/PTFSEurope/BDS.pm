@@ -85,7 +85,8 @@ sub configure {
         ## Grab the values we already have for our settings, if any exist
         $template->param(
             logdir              => $self->retrieve_data('logdir'),
-            editracefilename    => $self->retrieve_data('editracefilename'),
+            bdssourceoption     => $self->retrieve_data('bdssourceoption'),
+            editracefilename    => $self->retrieve_data('editracefilename'),            
             custcodeprefix      => $self->retrieve_data('custcodeprefix'),
             eancontrolmarcfield => $self->retrieve_data('eancontrolmarcfield'),
             isncontrolmarcfield => $self->retrieve_data('isncontrolmarcfield'),
@@ -108,7 +109,8 @@ sub configure {
     }
     else {
         my $logdir              = $cgi->param('logdir')              // "";
-        my $editracefilename    = $cgi->param('editracefilename')    // "";
+        my $bdssourceoption     = $cgi->param('bdssourceoption')    // "";
+        my $editracefilename    = $cgi->param('editracefilename')    // "";        
         my $custcodeprefix      = $cgi->param('custcodeprefix')      // "";
         my $eancontrolmarcfield = $cgi->param('eancontrolmarcfield') // "";
         my $isncontrolmarcfield = $cgi->param('isncontrolmarcfield') // "";
@@ -128,7 +130,8 @@ sub configure {
         $self->store_data(
             {
                 logdir              => $logdir,
-                editracefilename    => $editracefilename,
+                bdssourceoption     => $bdssourceoption,
+                editracefilename    => $editracefilename,                
                 custcodeprefix      => $custcodeprefix,
                 eancontrolmarcfield => $eancontrolmarcfield,
                 isncontrolmarcfield => $isncontrolmarcfield,
@@ -266,66 +269,90 @@ sub get_keys_forsubmission {
 
     my ( $self, $args ) = @_;
 
- # Scan the edi trace log for records generated from EDI quotes that lack a matching bib
- # Extract the search key and biblio number so that search keys can be submitted
- # to BDS
+ # Choose the route from the config to source the keys
+ 
+ my $bdssourceroute = $self->retrieve_data('bdssourceoption');
 
-    my $logfile =
-      $self->retrieve_data('logdir') . $self->retrieve_data('editracefilename');
-    my $bds_dir = $self->{plugindir};
-    my $date;
-    # comment in and adjust  line below to allow for getting keys from a different date to today
-    #$date="2025/07/28";
+my @raw_keys;
+my $bds_dir = $self->{plugindir};
+my $normalized_date;
+my $date;
+# comment in and adjust  line below to allow for getting keys from a different date to today (EDI trace route only)
+#$date="2025/07/28";
 
-    if (@ARGV) {
-        $date = shift;
-        if ( $date !~ m/^\d{4}\/\d{2}\/\d{2}/ ) {
-            print { $self->{bdslog} } "$todaysdate : Error: Invalid date parameter passed : use format YYYY/MM/DD. Exiting early. \n";                   
-            say "Invalid date parameter passed : use format YYYY/MM/DD. Exiting.";
-            exit 1;
+if (@ARGV) {
+    $date = shift;
+    if ( $date !~ m/^\d{4}\/\d{2}\/\d{2}/ ) {
+        print { $self->{bdslog} } "$todaysdate : Error: Invalid date parameter passed : use format YYYY/MM/DD. Exiting early. \n";                   
+        say "Invalid date parameter passed : use format YYYY/MM/DD. Exiting.";
+        exit 1;
+    }
+}
+
+if ( !$date ) {
+    my @t = localtime();
+    $date = sprintf '%4d/%02d/%02d', $t[5] + 1900, $t[4] + 1, $t[3];
+}
+$normalized_date = $date;
+$normalized_date =~ s#/##g;        
+
+
+ if($bdssourceroute eq "EDI") {
+
+        # Scan the edi trace log for records generated from EDI quotes that lack a matching bib
+        # Extract the search key and biblio number so that search keys can be submitted
+        # to BDS
+
+        my $logfile =
+        $self->retrieve_data('logdir') . $self->retrieve_data('editracefilename');        
+
+        
+        print { $self->{bdslog} } "$todaysdate : Trying to open EDI trace log $logfile and scan for records created / updated on $date\n";                   
+        open( my $fh, '<', $logfile )
+        or return { error => "Unable to open EDI trace log file at $logfile so returning" };
+
+        my ( $key, $bib );
+        while (<$fh>) {
+            chomp;
+            if (/$date/) {    # eg 2021/06/22
+                my $line = substr $_, 20;
+                if ( $line =~ m/Checking db for matches with ([\dXx]+)/ ) {
+                    $key = $1;
+                    undef $bib;
+                }
+                elsif ( $line =~ m/^New biblio added (\d+)/  || $line =~ m/Added biblio: (\d+)/) {
+                    # backwards compatabile for pre-v25 Koha editrace log formats too.
+                    $bib = $1;
+                    push @raw_keys, "$key|$bib";
+                }
+                elsif ( $line =~ m/Match found/ ) {
+                    undef $key;
+                }
+                elsif ( $line =~ m/Updating bib:(\d+) id:([\dXx]+)/ )
+                {    # invoice updated title
+                    push @raw_keys, "$2|$1";
+                }
+            }
         }
-    }
-
-    if ( !$date ) {
-        my @t = localtime();
-        $date = sprintf '%4d/%02d/%02d', $t[5] + 1900, $t[4] + 1, $t[3];
-    }
-
-    
-
-    my $normalized_date = $date;
-    $normalized_date =~ s#/##g;
-    my @raw_keys;
-    
-    print { $self->{bdslog} } "$todaysdate : Trying to open EDI trace log $logfile and scan for records created / updated on $date\n";                   
-    open( my $fh, '<', $logfile )
-      or return { error => "Unable to open EDI trace log file at $logfile so returning" };
-
-    my ( $key, $bib );
-    while (<$fh>) {
-        chomp;
-        if (/$date/) {    # eg 2021/06/22
-            my $line = substr $_, 20;
-            if ( $line =~ m/Checking db for matches with ([\dXx]+)/ ) {
-                $key = $1;
-                undef $bib;
+        close $fh;
+ }
+ else {
+            # must be a mysql report source
+            # Look for results file Logs/bdssubmissions.txt
+            
+            my $sqlreport="Logs/bdssubmissions.txt";
+            open( my $rpth, '<', $bds_dir . $sqlreport )
+                or return { error => "Unable to open EDI trace log file at $sqlreport so returning" };
+            print { $self->{bdslog} } "$todaysdate : Trying to open mySQL results file $sqlreport and collect the key value pairs\n";                                   
+            while(<$rpth>) {
+                chomp;
+                if($_ =~ m/([\dXx]+)\|(\d+)/) {
+                    push @raw_keys, "$1|$2";
+                }
             }
-            elsif ( $line =~ m/^New biblio added (\d+)/  || $line =~ m/Added biblio: (\d+)/) {
-                # backwards compatabile for pre-v25 Koha editrace log formats too.
-                $bib = $1;
-                push @raw_keys, "$key|$bib";
-            }
-            elsif ( $line =~ m/Match found/ ) {
-                undef $key;
-            }
-            elsif ( $line =~ m/Updating bib:(\d+) id:([\dXx]+)/ )
-            {    # invoice updated title
-                push @raw_keys, "$2|$1";
-            }
-        }
-    }
-    close $fh;
 
+
+ }
     @raw_keys = uniq @raw_keys;    # dont submit duplicates
     print { $self->{bdslog} } "$todaysdate : " . scalar @raw_keys . " keys found to process for date " . $date . "\n";      
 
