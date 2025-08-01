@@ -27,7 +27,7 @@ use IO::Pty;
 use Data::Dumper;
 
 ## Here we set our plugin version
-our $VERSION = '1.13.0';
+our $VERSION = '2.0.0';
 our $MINIMUM_VERSION = "22.05.00.000"; 
 
 ## Here is our metadata, some keys are required, some are optional
@@ -35,7 +35,7 @@ our $metadata = {
     name            => 'BDS Marc Record Integrator',
     author          => 'Bernard Scaife',
     date_authored   => '2023-05-15',
-    date_updated    => '2025-07-31',
+    date_updated    => '2025-08-01',
     minimum_version => $MINIMUM_VERSION,
     maximum_version => undef,
     version         => $VERSION,
