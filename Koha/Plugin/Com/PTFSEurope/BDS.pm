@@ -978,6 +978,7 @@ sub stage_and_load() {
               . $file_to_stage
               . " --match "
               . $mtch_rule
+              . " --encoding MARC-8"
               . " --item-action ignore > "
               . $directory . "Logs/"
               . $file_to_stage
