@@ -30,7 +30,7 @@ use Data::Dumper;
 our $VERSION = '2.2.0';
 our $MINIMUM_VERSION = "22.05.00.000"; 
 
-## Here is our metadata, some keys are required, some are optional
+## Here is our metadata
 our $metadata = {
     name            => 'BDS Marc Record Integrator',
     author          => 'Bernard Scaife',
